@@ -1,59 +1,52 @@
 # 🚀 Chitchat Automation Suite
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-green?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Protocol](https://img.shields.io/badge/Protocol-Socket.IO%20v4-purple)](https://socket.io/)
-[![Architecture](https://img.shields.io/badge/Architecture-100%25%20Headless%20REST%20%2B%20WS-emerald)](./docs/endpoints_doc.md)
+[![Architecture](https://img.shields.io/badge/Dual%20Mode-Backend%20API%20%7C%20Visual%20UI-emerald)](#-two-hunting-modes)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-success)](#)
 
-> **A high-performance, event-driven reverse-engineered automation framework and conversational intelligence bot for Chitchat.gg.**
+> **A high-performance dual-mode automation framework and conversational intelligence bot for Chitchat.gg.**
 >
-> Built entirely on native **Socket.IO v4 WebSockets** and **REST APIs** with zero browser overhead. Filters strangers in milliseconds, screens demographics naturally, handles bidirectional dialogues with realistic typing jitter, and harvests contact handles directly into structured markdown.
+> Operates in two distinct modes: a **100% Headless Socket.IO & REST Backend Engine** for blazing sub-second cycles, and an **Interactive Visual UI Browser Bot** with an on-screen HUD overlay for live desktop monitoring and manual takeover.
 
 ---
 
-## ⚡ Highlights & Capabilities
+## ⚡ Two Hunting Modes
 
-- **Zero-Browser Overhead**: Operates 100% through direct Socket.IO and HTTPS connections. No Chromium or Puppeteer required during operation—achieving sub-second matchmaking cycles with minimal memory usage.
-- **Race-Condition Resilient**: Fully decoupled state-machine engine separating `match_event` and `disconnect_event` to prevent false skips, ghost matches, or premature disconnects.
-- **Smart Demographic & Intent Classifier**: Fast regex-based natural language parser detecting age, gender declarations (`19f`, `f u?`, `m`, `male`), counter-questions (`wbu`, `u?`), and greetings.
-- **Strict Minor Safety Gate**: Instant automatic skips on any underage references (`< 18`) to ensure complete safety and safeguard session integrity.
-- **Persona-Driven Dialog Engine**: Converses naturally with realistic human typing delays (`send_typing` simulation), contextual icebreakers, and casual conversational patterns.
-- **Contact Extraction & Desktop Alerts**: Automatically parses Instagram handles (`@handle`, `ig: ...`), writes to structured markdown tables, and triggers cross-platform desktop notifications and audio chimes.
+| Feature | ⚡ Backend Mode (`hunter_backend.py`) | 🖥️ Visual UI Mode (`hunter_ui.js`) |
+| :--- | :--- | :--- |
+| **Engine** | Python (`requests` + `websockets` Socket.IO v4) | Node.js (`puppeteer-core` with stealth bypass) |
+| **Execution** | Pure terminal CLI feed (Color-coded) | Real Chrome browser on screen with in-page HUD |
+| **Resource Usage** | Ultra-lightweight (~15 MB RAM, 0% GPU) | Standard browser (~120 MB RAM, GPU rendering) |
+| **Matching Speed** | Sub-second instant API matchmaking | Normal browser DOM cycle speed |
+| **User Interaction**| Hands-off autonomous background daemon | On-screen HUD buttons: Pause, Next, Manual Takeover |
+| **Chat Bot Persona**| Sahan, 20, Sri Lanka (Natural conversationalist)| Sahan, 20, Sri Lanka (Natural conversationalist) |
+| **Instagram Harvest**| Automatically saved to `girls_instagram.md` | Automatically saved to `girls_instagram.md` |
+| **Alerts** | Audio bell + Desktop notification (`notify-send`)| Audio bell + Desktop notification + Glowing pink HUD |
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ Architecture & Protocols
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant Bot as Chitchat Automation Client
-    participant API as Chitchat REST API
-    participant WS as Socket.IO v4 Gateway
-    participant Peer as Stranger Peer
+graph TD
+    subgraph UI_Mode ["🖥️ UI Mode (hunter_ui.js)"]
+        A[Chrome Browser + Stealth] --> B[Interactive In-Page HUD]
+        B --> C[DOM Chat & Cycle Automation]
+    end
 
-    Bot->>WS: WSS Connect (Engine.IO Handshake + Socket.IO '40')
-    WS-->>Bot: Handshake Accepted & Authenticated
-    loop Keep-Alive Loop
-        WS->>Bot: "2" (Server Ping)
-        Bot-->>WS: "3" (Client Pong)
+    subgraph Backend_Mode ["⚡ Backend Mode (hunter_backend.py)"]
+        D[REST API Client] -->|POST /match| E[Chitchat Gateway]
+        F[Socket.IO v4 Client] -->|Real-time matchUpdate| E
+        F -->|chatMessage stream| G[Intent & Demographic Classifier]
     end
-    Bot->>API: POST /match {"withInterests": false}
-    WS-->>Bot: matchUpdate (Conv ID + Peer Profile)
-    Bot->>API: POST /typing
-    Bot->>API: POST /messages "f or m?"
-    WS-->>Bot: chatMessage (Peer Response)
-    alt Peer is Male / Inactive
-        Bot->>API: PATCH /match/disconnect {"next": false}
-    else Peer is Female
-        Bot->>API: POST /messages (Conversational Dialogue)
-        WS-->>Bot: chatMessage (Peer Shares Handle)
-        Bot->>Bot: Extract Handle & Write to Markdown
-        Bot->>Bot: Desktop Notification & Chime
-        Bot->>API: POST /messages "awesome, added u! talk soon :)"
-        Bot->>API: PATCH /match/disconnect {"next": false}
-    end
+
+    G -->|Girl Matched| H[Persona Engine: Sahan]
+    C -->|Girl Matched| H
+    H -->|Extract @handle| I[(girls_instagram.md)]
+    H -->|notify-send| J[Desktop & Audio Alerts]
 ```
 
 ---
@@ -62,21 +55,19 @@ sequenceDiagram
 
 ```
 chitchat-automation-suite/
-├── hunter.py                # 🚀 Main backend hunter & conversation engine
-├── chitchat_api.py          # 🔌 Socket.IO v4 & REST client wrapper
-├── cookies.json             # 🔑 Active session cookies (Ignored by git)
+├── hunter_backend.py        # ⚡ Dedicated Backend hunter (Python + Socket.IO)
+├── hunter_ui.js             # 🖥️ Dedicated Visual UI hunter (Node.js + Puppeteer)
+├── hunter.py                # 🔄 Backend runner alias
+├── chitchat_api.py          # 🔌 Reverse-engineered Socket.IO v4 & REST client
+├── cookies.json             # 🔑 Active session cookies (Protected, in .gitignore)
 ├── cookies.example.json     # 📄 Template for session cookies
 ├── girls_instagram.md       # 📋 Harvested contact data store
+├── package.json             # 📦 Node dependencies & npm scripts
 ├── requirements.txt         # 📦 Python package dependencies
-├── .gitignore               # 🛡️ Git exclusion rules (safeguards credentials)
 ├── docs/                    # 📚 Reverse-engineering documentation
-│   ├── endpoints_doc.md     # REST & WebSocket specifications
-│   ├── endpoints_dump.json  # Raw CDP network trace dump
-│   └── texting_patterns.md  # Slang and conversational guide
-├── legacy/                  # 📦 Archived Puppeteer UI scripts & experiments
-│   ├── inspect/             # UI inspection tools
-│   └── tests/               # Experimental tests
-└── assets/                  # 🖼️ Project documentation assets
+│   ├── endpoints_doc.md     # Complete REST & WebSocket API specification
+│   └── texting_patterns.md  # Conversational rules and demographic guides
+└── legacy/                  # 📦 Internal tests and exploration scripts
 ```
 
 ---
@@ -84,37 +75,42 @@ chitchat-automation-suite/
 ## 🛠️ Installation & Setup
 
 ### 1. Prerequisites
-- Python 3.10 or higher
-- Valid account or guest session cookies from [chitchat.gg](https://app.chitchat.gg)
+- **Python 3.10+** (for Backend mode)
+- **Node.js 18+** & Google Chrome (for UI mode)
+- Active session cookies from [chitchat.gg](https://app.chitchat.gg)
 
-### 2. Clone & Install Dependencies
+### 2. Install Dependencies
 ```bash
-git clone https://github.com/dulithdivisekara/chitchat-automation-suite.git
-cd chitchat-automation-suite
+# Install Python backend dependencies
 pip install -r requirements.txt
+
+# Install Node.js UI dependencies
+npm install
 ```
 
-### 3. Configure Authentication
-Copy the template configuration file:
+### 3. Configure Cookies
+Copy the sample cookie template:
 ```bash
 cp cookies.example.json cookies.json
 ```
-Populate `cookies.json` with your active Chitchat session cookies:
-- `token`: Your account's JWT authorization token.
-- `__Secure-text-session`: Session tracking cookie.
-- `cf_clearance`: Cloudflare clearance cookie bound to your IP.
+Populate `cookies.json` with your active cookies:
+- `token`: Account JWT authorization token
+- `__Secure-text-session`: Active session token
+- `cf_clearance`: Cloudflare clearance token
 
 ---
 
 ## 🚀 Usage
 
-### Running the Live Hunter
-To start the live background hunter with color-coded terminal output:
+### Option 1: Run Backend Mode (CLI Feed)
+Fastest, zero-overhead background execution:
 ```bash
-PYTHONUNBUFFERED=1 python3 hunter.py
+python3 hunter_backend.py
+# or
+npm run backend
 ```
 
-### Terminal Output Preview
+**Terminal Output Preview:**
 ```
 ╔═════════════════════════════════════════════════════════════╗
 ║     CHITCHAT LIVE BACKEND HUNTER - PERSONA: SAHAN          ║
@@ -128,9 +124,9 @@ PYTHONUNBUFFERED=1 python3 hunter.py
 [✓] Real-time Socket.IO connected!
 
 ────────────────── [ Match #1 ] ──────────────────
-[*] Connected with: @contemporary meriste
+[*] Connected with: @contemporary_user
 [You (Sahan)]: "f or m?"
-[@contemporary meriste]: "M"
+[@contemporary_user]: "M"
 [⚡ SKIP] Male detected ("M"). Skipping immediately...
 
 ────────────────── [ Match #2 ] ──────────────────
@@ -150,13 +146,46 @@ PYTHONUNBUFFERED=1 python3 hunter.py
 
 ---
 
-## 📋 Data Output Format
+### Option 2: Run UI Mode (On-Screen Browser + HUD)
+Visual execution with on-screen interactive control panel:
+```bash
+node hunter_ui.js
+# or
+npm run ui
+```
 
-Harvested profiles are logged directly to `girls_instagram.md`:
+*To run UI mode headlessly in background:*
+```bash
+node hunter_ui.js --headless
+# or
+npm run ui:headless
+```
+
+**On-Screen HUD Features:**
+- **Live Status:** Displays real-time matching and filtering state.
+- **Counters:** Males Skipped, Girls Matched, Instagrams Captured.
+- **Pause / Resume:** Freeze automation to take over conversation at any second.
+- **Auto-Bot / Manual:** Toggle between automated bot chat and manual typing.
+- **Next (Skip):** Immediately skip to the next stranger.
+
+---
+
+## 📋 Harvested Data Output Format
+
+Harvested profiles are logged directly into [`girls_instagram.md`](./girls_instagram.md):
 
 | # | Instagram Handle | Profile Link | Chitchat Username | Detected Info | Date & Time |
 |---|---|---|---|---|---|
 | 1 | `@chloe.la` | [chloe.la](https://instagram.com/chloe.la) | @chloe_xox | 19f cali | 2026-11-01 20:05 |
+
+---
+
+## 🛡️ Safety & Anti-Ban Architecture
+
+1. **Decoupled Match & Disconnect States:** Prevents race conditions and null session skips from delayed socket packets.
+2. **Minor Protection Gate:** Instant skip upon detecting any underage reference (`< 18`) to ensure user safety and compliance.
+3. **Humanized Typing Simulation:** Random jitter and typing indicator (`send_typing`) delays avoid robotic behavior patterns.
+4. **Cloudflare Stealth Bypass:** Uses proper browser headers and flags (`--disable-blink-features=AutomationControlled`) to prevent bot detection.
 
 ---
 

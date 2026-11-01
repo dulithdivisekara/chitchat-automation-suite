@@ -4,8 +4,10 @@
   "description": "Automated Chitchat stranger filtering and girl-matching bot",
   "main": "smart_ui_hunter.js",
   "scripts": {
-    "start": "node smart_ui_hunter.js",
-    "backend": "python3 backend_hunter.py"
+    "start": "node hunter_ui.js",
+    "ui": "node hunter_ui.js",
+    "ui:headless": "node hunter_ui.js --headless",
+    "backend": "python3 hunter_backend.py"
   },
   "keywords": ["chitchat", "filter", "automation"],
   "author": "",
