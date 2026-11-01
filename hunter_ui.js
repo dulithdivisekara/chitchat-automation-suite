@@ -5,7 +5,16 @@ const { exec } = require('child_process');
 
 const TARGET_INSTAGRAM_COUNT = 2;
 const STORAGE_FILE = path.join(__dirname, 'girls_instagram.md');
+const LOG_FILE = path.join(__dirname, 'hunter.log');
 const COOKIES_PATH = path.join(__dirname, 'cookies.json');
+
+function logEvent(message) {
+  const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  const cleanMsg = message.replace(/\x1b\[[0-9;]*m/g, '');
+  try {
+    fs.appendFileSync(LOG_FILE, `[${timestamp}] ${cleanMsg}\n`, 'utf-8');
+  } catch (e) {}
+}
 
 if (!fs.existsSync(COOKIES_PATH)) {
   console.error('[!] cookies.json not found! Please create cookies.json based on cookies.example.json.');
@@ -259,6 +268,7 @@ function recordInstagramToFile(handle, partner, convoHistory = [], extraInfo = '
   console.log(`📁 Stored in: ${STORAGE_FILE}`);
   console.log('★'.repeat(65) + '\n');
 
+  logEvent(`INSTA_CAPTURED: @${cleanHandle} from @${partner} | Age: ${metadata.age} | Location: ${metadata.location} | Interests: ${metadata.interests}`);
   playAlertSound();
   sendDesktopNotification(`🎉 INSTAGRAM CAPTURED: @${cleanHandle}`, `From @${partner} (${metadata.location})\nSaved to ${STORAGE_FILE}!`);
 
@@ -549,6 +559,7 @@ class ChitchatUIHunter {
         });
 
         console.log(`\x1b[96m\x1b[1m[You (Sahan)]:\x1b[0m \x1b[96m"${text}"\x1b[0m`);
+        logEvent(`OUTBOUND: [You (Sahan)]: "${text}"`);
         return true;
       }
     } catch (e) {}
@@ -651,6 +662,7 @@ class ChitchatUIHunter {
   async engageGirl(initialText, partner) {
     console.log(`\n\x1b[1m\x1b[95m[💖 GIRL MATCHED: @${partner}]\x1b[0m Screening answer: "${initialText}"`);
     await this.updateHUD(`🎉 GIRL: @${partner}!`, true);
+    logEvent(`CONFIRMED_GIRL: @${partner} (${initialText})`);
     playAlertSound();
     sendDesktopNotification(`💖 GIRL FOUND: @${partner}`, `Screening: "${initialText}"\nAuto-chatting for Instagram...`);
 
@@ -822,10 +834,12 @@ class ChitchatUIHunter {
 
       this.lastPartner = partner;
       console.log(`\x1b[93m[*] Connected with:\x1b[0m \x1b[1m@${partner}\x1b[0m`);
+      logEvent(`MATCH_START: @${partner}`);
 
       // 2. Instant username check (Male)
       if (isMaleUsername(partner)) {
         console.log(`\x1b[91m[⚡ SKIP] Male indicator in username (@${partner}). Skipping immediately!\x1b[0m`);
+        logEvent(`SKIP_USERNAME: @${partner} (Male indicator in username)`);
         this.stats.males++;
         await this.updateHUD(`Skipped male: @${partner}`);
         await this.triggerSkip();
@@ -835,6 +849,7 @@ class ChitchatUIHunter {
       // 3. Instant username check (Female)
       if (isFemaleUsername(partner)) {
         console.log(`\x1b[95m[💖 FEMALE USERNAME DETECTED: @${partner}]\x1b[0m`);
+        logEvent(`FEMALE_USERNAME_DETECTED: @${partner}`);
         this.stats.girls++;
         await this.engageGirl(`username: @${partner}`, partner);
         continue;
@@ -881,11 +896,13 @@ class ChitchatUIHunter {
           startTime = Date.now();
           const text = msg.text;
           console.log(`\x1b[95m[@${partner}]:\x1b[0m "${text}"`);
+          logEvent(`INBOUND: [@${partner}]: "${text}"`);
           const lower = text.toLowerCase().trim();
 
           // A. Underage safety check
           if (/(?:^|\b)(?:1[0-7]|underage|minor|child|kid)(?:f|m|\b)/i.test(lower)) {
             console.log('\x1b[91m[🛡️ SAFETY SKIP] Underage detected. Skipping immediately!\x1b[0m');
+            logEvent(`SAFETY_SKIP_UNDERAGE: @${partner} ("${text}")`);
             isAnswered = true;
             await this.updateHUD('Safety skip (underage)');
             await this.triggerSkip();
@@ -900,6 +917,7 @@ class ChitchatUIHunter {
             this.stats.males++;
             isAnswered = true;
             console.log(`\x1b[91m[⚡ SKIP] Male detected ("${text}"). Skipping immediately...\x1b[0m`);
+            logEvent(`SKIP_MALE_CHAT: @${partner} ("${text}")`);
             await this.updateHUD(`Skipped male: "${text}"`);
             await this.triggerSkip();
             break;

@@ -24,4 +24,5 @@ Thumbs.db
 
 # Debug assets (optional screenshots)
 assets/*.png
+!assets/chitchat-logo.png
 !assets/.gitkeep

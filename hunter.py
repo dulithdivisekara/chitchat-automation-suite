@@ -8,6 +8,16 @@ from chitchat_api import ChitchatClient
 
 TARGET_INSTAGRAM_COUNT = 2
 STORAGE_FILE = "girls_instagram.md"
+LOG_FILE = "hunter.log"
+
+def log_event(message):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    clean_msg = re.sub(r'\033\[[0-9;]*m', '', str(message))
+    try:
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(f"[{timestamp}] {clean_msg}\n")
+    except Exception:
+        pass
 
 # Terminal Color codes for beautiful live viewing
 CYAN = "\033[96m"
@@ -347,6 +357,7 @@ class InstagramHunter:
         if not self.disconnect_event.is_set() and self.active_conv_id:
             self.client.send_message(self.active_conv_id, text)
             print(f"{CYAN}{BOLD}[You (Sahan)]:{RESET} {CYAN}\"{text}\"{RESET}")
+            log_event(f"OUTBOUND: [You (Sahan)]: \"{text}\"")
 
     def record_instagram(self, handle, partner, convo_history, initial_text=""):
         clean_handle = handle.lstrip('@')
@@ -381,6 +392,7 @@ class InstagramHunter:
         print(f"📁 Stored in: {STORAGE_FILE}")
         print("★" * 65 + f"{RESET}\n")
 
+        log_event(f"INSTA_CAPTURED: @{clean_handle} from @{partner} | Age: {age} | Location: {location} | Interests: {interests}")
         play_alert_sound()
         send_desktop_notification(
             f"🎉 INSTAGRAM CAPTURED: @{clean_handle}",
@@ -390,6 +402,7 @@ class InstagramHunter:
     async def engage_girl_for_instagram(self, initial_text, partner):
         """Converses naturally, empathetically, and politely as Sahan to acquire Instagram handle."""
         print(f"\n{BOLD}{MAGENTA}[💖 CHATTING WITH @{partner}]{RESET} Girl confirmed ({initial_text})")
+        log_event(f"CONFIRMED_GIRL: @{partner} ({initial_text})")
 
         convo_history = [initial_text]
         asked_insta = False
@@ -532,10 +545,12 @@ class InstagramHunter:
         self.disconnect_event.clear()
         partner = self.partner_username or "Stranger"
         print(f"{YELLOW}[*] Connected with:{RESET} {BOLD}@{partner}{RESET}")
+        log_event(f"MATCH_START: @{partner} (Conv ID: {self.active_conv_id})")
 
         # 1. Instant username check (Male)
         if is_male_username(partner):
             print(f"{RED}[⚡ SKIP] Male indicator in username (@{partner}). Skipping immediately!{RESET}")
+            log_event(f"SKIP_USERNAME: @{partner} (Male keyword/name in username)")
             self.stats["males"] += 1
             await self.close_match()
             return
@@ -543,6 +558,7 @@ class InstagramHunter:
         # 2. Instant username check (Female)
         if is_female_username(partner):
             print(f"{MAGENTA}[💖 FEMALE USERNAME DETECTED: @{partner}]{RESET}")
+            log_event(f"FEMALE_USERNAME_DETECTED: @{partner}")
             self.stats["girls"] += 1
             await self.engage_girl_for_instagram(f"username: @{partner}", partner)
             return
@@ -559,6 +575,7 @@ class InstagramHunter:
         while asyncio.get_event_loop().time() - start_time < 25.0:
             if self.disconnect_event.is_set():
                 print(f"{YELLOW}[x] Stranger disconnected.{RESET}")
+                log_event(f"DISCONNECT: @{partner} disconnected")
                 is_answered = True
                 break
 
@@ -575,11 +592,13 @@ class InstagramHunter:
             start_time = asyncio.get_event_loop().time()
             content = msg.get("content", "").strip()
             print(f"{MAGENTA}[@{partner}]:{RESET} \"{content}\"")
+            log_event(f"INBOUND: [@{partner}]: \"{content}\"")
             lower = content.lower().strip()
 
             # A. Underage safety check
             if re.search(r'(?:^|\b)(?:1[0-7]|underage|minor|child|kid)(?:f|m|\b)', lower):
                 print(f"{RED}[🛡️ SAFETY SKIP] Underage detected (\"{content}\"). Skipping immediately!{RESET}")
+                log_event(f"SAFETY_SKIP_UNDERAGE: @{partner} (\"{content}\")")
                 is_answered = True
                 await self.close_match()
                 break
@@ -592,6 +611,7 @@ class InstagramHunter:
                 self.stats["males"] += 1
                 is_answered = True
                 print(f"{RED}[⚡ SKIP] Male detected (\"{content}\"). Skipping immediately...{RESET}")
+                log_event(f"SKIP_MALE_CHAT: @{partner} (\"{content}\")")
                 await self.close_match()
                 break
 
@@ -634,6 +654,7 @@ class InstagramHunter:
 
         if not is_answered:
             print(f"{YELLOW}[⏱] No reply from @{partner}. Skipping...{RESET}")
+            log_event(f"TIMEOUT: No reply from @{partner} after 25s")
             self.stats["timeouts"] += 1
             await self.close_match()
 
