@@ -1,0 +1,26 @@
+[
+  {
+    "name": "__Secure-text-session",
+    "value": "YOUR_SECURE_TEXT_SESSION_HERE",
+    "domain": ".chitchat.gg",
+    "path": "/",
+    "secure": true,
+    "httpOnly": true
+  },
+  {
+    "name": "token",
+    "value": "YOUR_JWT_TOKEN_HERE",
+    "domain": ".chitchat.gg",
+    "path": "/",
+    "secure": true,
+    "httpOnly": false
+  },
+  {
+    "name": "cf_clearance",
+    "value": "YOUR_CF_CLEARANCE_HERE",
+    "domain": ".chitchat.gg",
+    "path": "/",
+    "secure": true,
+    "httpOnly": true
+  }
+]

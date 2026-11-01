@@ -1,0 +1,16 @@
+{
+  "name": "girl-hunt",
+  "version": "2.0.0",
+  "description": "Automated Chitchat stranger filtering and girl-matching bot",
+  "main": "smart_ui_hunter.js",
+  "scripts": {
+    "start": "node smart_ui_hunter.js",
+    "backend": "python3 backend_hunter.py"
+  },
+  "keywords": ["chitchat", "filter", "automation"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "puppeteer-core": "^23.6.0"
+  }
+}
