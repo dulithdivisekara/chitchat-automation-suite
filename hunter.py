@@ -88,9 +88,8 @@ def classify_gender(text):
 
 def is_male_username(username):
     lower = username.lower()
-    if re.search(r"\b(m|male|boy|guy|man|bro|dude)\b", lower):
-        return True
-    if re.search(r"(\(m\)|\(male\)|-m-|\bm\b|\bbro\b|\bguy\b)", lower):
+    # Strict matching only to avoid false positive skips on random adjective-noun usernames
+    if re.search(r"(^|\s|\(|-)(male|boy|dude|bro|femboy|m4f|m4m)(\s|\)|-|$)", lower):
         return True
     return False
 
@@ -341,9 +340,12 @@ class InstagramHunter:
             await self.close_match()
             return
 
-        if not self.active_conv_id or self.disconnect_event.is_set():
+        if not self.active_conv_id:
             await self.close_match()
             return
+
+        # Clear any residual disconnect flag for this fresh match
+        self.disconnect_event.clear()
 
         partner = self.partner_username or "Stranger"
         print(f"{YELLOW}[*] Connected with:{RESET} {BOLD}@{partner}{RESET}")
@@ -355,11 +357,11 @@ class InstagramHunter:
             await self.close_match()
             return
 
-        # Human pause before sending screening question
-        await asyncio.sleep(1.2)
+        # Fast human pause to ensure text is sent before quick-skippers leave
+        await asyncio.sleep(0.5)
 
         # 2. Screening Question
-        await self.human_send("f or m?", typing_time=0.8)
+        await self.human_send("f or m?", typing_time=0.6)
 
         # 3. Monitor screening reply (up to 18s for slow mobile typers)
         start_time = asyncio.get_event_loop().time()

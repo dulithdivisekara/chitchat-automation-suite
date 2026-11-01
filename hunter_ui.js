@@ -69,8 +69,8 @@ function classifyGender(text) {
 
 function isMaleUsername(username) {
   const lower = username.toLowerCase();
-  if (/\b(m|male|boy|guy|man|bro|dude)\b/.test(lower)) return true;
-  if (/(\(m\)|\(male\)|-m-|\bm\b|\bbro\b|\bguy\b)/.test(lower)) return true;
+  // Strict matching only to avoid false positive skips on random adjective-noun usernames
+  if (/(^|\s|\(|-)(male|boy|dude|bro|femboy|m4f|m4m)(\s|\)|-|$)/i.test(lower)) return true;
   return false;
 }
 
@@ -459,9 +459,21 @@ class ChitchatUIHunter {
       }
 
       const isLobby = !!document.querySelector('.search-action-button') && !hasActiveTextarea;
-      const isLeft = document.body.innerText.includes('left the chat') ||
-                     document.body.innerText.includes('Chat ended');
-      const isDisconnected = (!hasActiveTextarea && !isLobby && !!partner) || isLeft;
+      
+      // CRITICAL FIX: Only check for disconnect if the textarea is actually disabled.
+      // Never check document.body.innerText as it contains the left sidebar's previous chat history!
+      const main = document.querySelector('main');
+      const mainText = main ? main.innerText : '';
+      const cycleBtn = document.querySelector('.t-match-cycle-button');
+      const cycleText = cycleBtn ? cycleBtn.innerText.trim() : '';
+
+      const isEnded = !hasActiveTextarea && (
+        mainText.includes('left the chat') ||
+        mainText.includes('Chat ended') ||
+        cycleText === 'START'
+      );
+
+      const isDisconnected = (!hasActiveTextarea && !isLobby && !!partner) || isEnded;
 
       return { partner, hasActiveTextarea, messages, isLobby, isDisconnected };
     }, this.myUsername);
@@ -482,6 +494,15 @@ class ChitchatUIHunter {
       if (state.isLobby) {
         const startBtn = await this.page.$('.search-action-button');
         if (startBtn) await startBtn.click().catch(() => {});
+      }
+
+      // If button inside main says START, click it to search
+      const cycle = await this.page.$('.t-match-cycle-button');
+      if (cycle) {
+        const text = await this.page.evaluate(el => el.innerText, cycle).catch(() => '');
+        if (text.includes('START')) {
+          await cycle.click().catch(() => {});
+        }
       }
 
       if (state.hasActiveTextarea && state.partner && state.partner !== this.lastPartner) {
