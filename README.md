@@ -1,15 +1,42 @@
-# 🚀 Chitchat Automation Suite
+<div align="center">
 
+<a href="https://chitchat.gg" target="_blank" rel="noopener noreferrer">
+  <img src="assets/chitchat-logo.svg" width="120" height="120" alt="Chitchat.gg Official Logo" />
+</a>
+
+# Chitchat Automation Suite
+
+**High-Performance Dual-Mode Automation Framework & Conversational Intelligence Engine for [Chitchat.gg](https://chitchat.gg)**
+
+[![Platform](https://img.shields.io/badge/Platform-Chitchat.gg-7c4bd2?logo=wechat&logoColor=white)](https://chitchat.gg)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Protocol](https://img.shields.io/badge/Protocol-Socket.IO%20v4-purple)](https://socket.io/)
-[![Architecture](https://img.shields.io/badge/Dual%20Mode-Backend%20API%20%7C%20Visual%20UI-emerald)](#-two-hunting-modes)
+[![Protocol](https://img.shields.io/badge/Protocol-Socket.IO%20v4-purple?logo=socketdotio&logoColor=white)](https://socket.io/)
+[![Architecture](https://img.shields.io/badge/Architecture-Dual--Engine-emerald)](#-two-hunting-modes)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-success)](#)
 
-> **A high-performance dual-mode automation framework and conversational intelligence bot for Chitchat.gg.**
->
-> Operates in two distinct modes: a **100% Headless Socket.IO & REST Backend Engine** for blazing sub-second cycles, and an **Interactive Visual UI Browser Bot** with an on-screen HUD overlay for live desktop monitoring and manual takeover.
+<p align="center">
+  <a href="#-two-hunting-modes">Modes</a> •
+  <a href="#-architecture--protocols">Architecture</a> •
+  <a href="#-project-structure">Structure</a> •
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-usage-guide">Usage Guide</a> •
+  <a href="#-test-suite">Testing</a> •
+  <a href="#-safety--compliance">Safety</a>
+</p>
+
+</div>
+
+---
+
+## 📖 Overview
+
+The **Chitchat Automation Suite** is an advanced dual-engine client engineered for automated matchmaking, demographic screening, and natural dialogue on [Chitchat.gg](https://chitchat.gg).
+
+It operates in two distinct operational paradigms:
+1. **⚡ Headless Backend Engine (`hunter_backend.py`)**: A 100% browser-free, event-driven client using Python, `requests`, and real-time `Socket.IO v4` over WebSockets for ultra-low latency, sub-second cycle speeds, and minimal resource consumption.
+2. **🖥️ Visual UI Browser Engine (`hunter_ui.js`)**: A Chromium-based browser bot powered by Puppeteer with anti-detection flags and an interactive on-screen floating Head-Up Display (HUD) overlay for real-time monitoring and seamless manual takeover.
 
 ---
 
@@ -18,13 +45,14 @@
 | Feature | ⚡ Backend Mode (`hunter_backend.py`) | 🖥️ Visual UI Mode (`hunter_ui.js`) |
 | :--- | :--- | :--- |
 | **Engine** | Python (`requests` + `websockets` Socket.IO v4) | Node.js (`puppeteer-core` with stealth bypass) |
-| **Execution** | Pure terminal CLI feed (Color-coded) | Real Chrome browser on screen with in-page HUD |
+| **Execution** | Pure terminal CLI feed (Color-coded stream) | Real Chrome window on screen with in-page HUD |
 | **Resource Usage** | Ultra-lightweight (~15 MB RAM, 0% GPU) | Standard browser (~120 MB RAM, GPU rendering) |
 | **Matching Speed** | Sub-second instant API matchmaking | Normal browser DOM cycle speed |
-| **User Interaction**| Hands-off autonomous background daemon | On-screen HUD buttons: Pause, Next, Manual Takeover |
-| **Chat Bot Persona**| Sahan, 20, Sri Lanka (Natural conversationalist)| Sahan, 20, Sri Lanka (Natural conversationalist) |
-| **Instagram Harvest**| Automatically saved to `girls_instagram.md` | Automatically saved to `girls_instagram.md` |
-| **Alerts** | Audio bell + Desktop notification (`notify-send`)| Audio bell + Desktop notification + Glowing pink HUD |
+| **User Controls** | Autonomous daemon / command-line interrupts | On-screen HUD buttons: Pause, Takeover, Skip |
+| **Chat Persona** | Sahan, 20, Sri Lanka (Natural conversationalist)| Sahan, 20, Sri Lanka (Natural conversationalist) |
+| **Typing Simulation** | WebSocket `typing` signals + jitter delay | Human keystroke cadence with DOM input events |
+| **Contact Harvest** | Automatically saved to `girls_instagram.md` | Automatically saved to `girls_instagram.md` |
+| **Alerts** | Audio bell + System notification (`notify-send`)| Audio bell + Desktop notification + Glowing HUD |
 
 ---
 
@@ -32,22 +60,29 @@
 
 ```mermaid
 graph TD
-    subgraph UI_Mode ["🖥️ UI Mode (hunter_ui.js)"]
-        A[Chrome Browser + Stealth] --> B[Interactive In-Page HUD]
+    subgraph UI_Mode ["🖥️ Visual UI Mode (hunter_ui.js)"]
+        A[Chrome Browser + Stealth] --> B[Interactive In-Page HUD Overlay]
         B --> C[DOM Chat & Cycle Automation]
     end
 
     subgraph Backend_Mode ["⚡ Backend Mode (hunter_backend.py)"]
         D[REST API Client] -->|POST /match| E[Chitchat Gateway]
         F[Socket.IO v4 Client] -->|Real-time matchUpdate| E
-        F -->|chatMessage stream| G[Intent & Demographic Classifier]
+        F -->|chatMessage Stream| G[Demographic & Intent Classifier]
     end
 
-    G -->|Girl Matched| H[Persona Engine: Sahan]
-    C -->|Girl Matched| H
+    G -->|Girl Confirmed| H[Conversational Persona: Sahan]
+    C -->|Girl Confirmed| H
     H -->|Extract @handle| I[(girls_instagram.md)]
     H -->|notify-send| J[Desktop & Audio Alerts]
 ```
+
+### Protocol Reverse-Engineering Highlights
+- **Gateway Base URL:** `https://api.chitchat.gg`
+- **Real-Time WebSocket:** `wss://api.chitchat.gg/socket.io/?EIO=4&transport=websocket`
+- **Queue Update vs. Disconnect:** Matchmaking queue pulses (`42["matchUpdate", {"inQueue": true}]`) are cleanly isolated from closures (`match.closure.closed == true`) to prevent false disconnects.
+- **Dynamic Typing Extension:** Inbound `typing` events automatically reset conversation timers to accommodate slow mobile typers.
+- Detailed endpoint documentation: [docs/endpoints_doc.md](docs/endpoints_doc.md).
 
 ---
 
@@ -55,63 +90,73 @@ graph TD
 
 ```
 chitchat-automation-suite/
-├── hunter_backend.py        # ⚡ Dedicated Backend hunter (Python + Socket.IO)
-├── hunter_ui.js             # 🖥️ Dedicated Visual UI hunter (Node.js + Puppeteer)
-├── hunter.py                # 🔄 Backend runner alias
+├── hunter_backend.py        # ⚡ Headless Backend Hunter (Python + Socket.IO v4)
+├── hunter_ui.js             # 🖥️ Visual Browser Hunter with interactive HUD (Node.js)
+├── hunter.py                # 🔄 Backend runner entrypoint alias
 ├── chitchat_api.py          # 🔌 Reverse-engineered Socket.IO v4 & REST client
-├── cookies.json             # 🔑 Active session cookies (Protected, in .gitignore)
-├── cookies.example.json     # 📄 Template for session cookies
-├── girls_instagram.md       # 📋 Harvested contact data store
-├── package.json             # 📦 Node dependencies & npm scripts
+├── cookies.json             # 🔑 Active session cookies (Ignored in git)
+├── cookies.example.json     # 📄 Template schema for authentication cookies
+├── girls_instagram.md       # 📋 Harvested contact data store (Markdown table)
+├── package.json             # 📦 Node configuration & npm run scripts
 ├── requirements.txt         # 📦 Python package dependencies
-├── docs/                    # 📚 Reverse-engineering documentation
-│   ├── endpoints_doc.md     # Complete REST & WebSocket API specification
-│   └── texting_patterns.md  # Conversational rules and demographic guides
-└── legacy/                  # 📦 Internal tests and exploration scripts
+├── LICENSE                  # ⚖️ MIT Open Source License
+├── assets/                  # 🎨 Brand assets and iconography
+│   └── chitchat-logo.svg    # Official high-resolution vector logo
+├── docs/                    # 📚 Technical specifications & reverse engineering
+│   ├── endpoints_doc.md     # Full REST & WebSocket API specification
+│   └── texting_patterns.md  # Conversational state-machine & demographic rules
+└── tests/                   # 🧪 Automated verification test suite
+    ├── test_backend.py      # Backend REST & Socket.IO handshake test
+    ├── test_ui.js           # Headless browser initialization test
+    └── test_timeout.js      # Timeout and active engagement benchmark
 ```
 
 ---
 
-## 🛠️ Installation & Setup
+## 🚀 Quick Start
 
 ### 1. Prerequisites
-- **Python 3.10+** (for Backend mode)
-- **Node.js 18+** & Google Chrome (for UI mode)
-- Active session cookies from [chitchat.gg](https://app.chitchat.gg)
+- **Python 3.10+**
+- **Node.js 18+** & Google Chrome
+- An active account or guest session on [Chitchat.gg](https://app.chitchat.gg)
 
-### 2. Install Dependencies
+### 2. Installation
 ```bash
+# Clone the repository
+git clone https://github.com/dulithdivisekara/chitchat-automation-suite.git
+cd chitchat-automation-suite
+
 # Install Python backend dependencies
 pip install -r requirements.txt
 
-# Install Node.js UI dependencies
+# Install Node.js dependencies
 npm install
 ```
 
-### 3. Configure Cookies
-Copy the sample cookie template:
+### 3. Authentication Setup
+Copy the example cookies file:
 ```bash
 cp cookies.example.json cookies.json
 ```
-Populate `cookies.json` with your active cookies:
+Export your session cookies from browser developer tools (`Storage` -> `Cookies` -> `https://app.chitchat.gg`) into `cookies.json`:
 - `token`: Account JWT authorization token
 - `__Secure-text-session`: Active session token
-- `cf_clearance`: Cloudflare clearance token
+- `cf_clearance`: Cloudflare bypass cookie
 
 ---
 
-## 🚀 Usage
+## 🎮 Usage Guide
 
-### Option 1: Run Backend Mode (CLI Feed)
-Fastest, zero-overhead background execution:
+### Option 1: Backend Mode (Recommended for Speed)
+Runs purely in the terminal with sub-second matching and zero UI overhead:
 ```bash
 python3 hunter_backend.py
 # or
 npm run backend
 ```
 
-**Terminal Output Preview:**
-```
+**Terminal Live Feed:**
+```text
 ╔═════════════════════════════════════════════════════════════╗
 ║     CHITCHAT LIVE BACKEND HUNTER - PERSONA: SAHAN          ║
 ╚═════════════════════════════════════════════════════════════╝
@@ -144,51 +189,64 @@ npm run backend
 📁 Stored in: girls_instagram.md
 ```
 
----
-
-### Option 2: Run UI Mode (On-Screen Browser + HUD)
-Visual execution with on-screen interactive control panel:
+### Option 2: Visual UI Mode (Browser with Floating HUD)
+Launches Google Chrome with a responsive in-page control panel:
 ```bash
 node hunter_ui.js
 # or
 npm run ui
 ```
 
-*To run UI mode headlessly in background:*
+*Headless execution (runs in background without opening window):*
 ```bash
-node hunter_ui.js --headless
-# or
 npm run ui:headless
 ```
 
-**On-Screen HUD Features:**
-- **Live Status:** Displays real-time matching and filtering state.
-- **Counters:** Males Skipped, Girls Matched, Instagrams Captured.
-- **Pause / Resume:** Freeze automation to take over conversation at any second.
-- **Auto-Bot / Manual:** Toggle between automated bot chat and manual typing.
-- **Next (Skip):** Immediately skip to the next stranger.
+**In-Page HUD Controls:**
+- **Live Status Pill:** Real-time state indicator (Searching, Screening, Chatting, Paused).
+- **Metric Counters:** Live count of males skipped, girls confirmed, and profiles harvested.
+- **⏸️ Pause / Resume:** Instantly freezes the automation loop to read or interact.
+- **🤖 Bot / 👤 Manual Toggle:** Seamlessly hand over chat control between AI persona and user.
+- **⏭️ Quick Skip:** Immediately cycle to the next stranger.
 
 ---
 
-## 📋 Harvested Data Output Format
+## 🧪 Test Suite
 
-Harvested profiles are logged directly into [`girls_instagram.md`](./girls_instagram.md):
+Run the automated test suite to verify connections, DOM selectors, and timeout logic:
+
+```bash
+# Verify Backend REST & WebSocket connection
+npm run test:backend
+
+# Verify Headless UI Browser & DOM scrapers
+npm run test:ui
+
+# Verify Timeout duration and anti-skip logic
+npm run test:timeout
+```
+
+---
+
+## 📋 Harvested Data Format
+
+Extracted Instagram profiles are structured in markdown table format inside [`girls_instagram.md`](girls_instagram.md):
 
 | # | Instagram Handle | Profile Link | Chitchat Username | Detected Info | Date & Time |
-|---|---|---|---|---|---|
+|:---:|---|---|---|---|---|
 | 1 | `@chloe.la` | [chloe.la](https://instagram.com/chloe.la) | @chloe_xox | 19f cali | 2026-11-01 20:05 |
 
 ---
 
 ## 🛡️ Safety & Anti-Ban Architecture
 
-1. **Decoupled Match & Disconnect States:** Prevents race conditions and null session skips from delayed socket packets.
-2. **Minor Protection Gate:** Instant skip upon detecting any underage reference (`< 18`) to ensure user safety and compliance.
-3. **Humanized Typing Simulation:** Random jitter and typing indicator (`send_typing`) delays avoid robotic behavior patterns.
-4. **Cloudflare Stealth Bypass:** Uses proper browser headers and flags (`--disable-blink-features=AutomationControlled`) to prevent bot detection.
+1. **Decoupled Match & Disconnect States:** Queue updates and true match closures are handled independently, preventing false-disconnect race conditions.
+2. **Minor Protection Gate:** Immediate termination upon any underage indication (`< 18`) to ensure compliance and ethical safety.
+3. **Humanized Keystroke Jitter:** Realistic random delays (`0.8s - 2.0s`) and simulated `typing` signals avoid heuristic bot detection.
+4. **Cloudflare Stealth Flags:** Puppeteer runs with `--disable-blink-features=AutomationControlled` to blend with organic user traffic.
 
 ---
 
-## ⚖️ Disclaimer
+## ⚖️ Disclaimer & License
 
-This repository is created for reverse-engineering research, network protocol analysis, and educational automation experiments. Use responsibly and in accordance with relevant platform Terms of Service.
+This project is released under the **[MIT License](LICENSE)**. It is intended solely for network protocol research, reverse-engineering study, and educational automation. Please use responsibly in compliance with all relevant platform Terms of Service.

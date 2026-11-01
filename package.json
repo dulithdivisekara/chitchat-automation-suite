@@ -1,17 +1,27 @@
 {
-  "name": "girl-hunt",
+  "name": "chitchat-automation-suite",
   "version": "2.0.0",
-  "description": "Automated Chitchat stranger filtering and girl-matching bot",
-  "main": "smart_ui_hunter.js",
+  "description": "High-performance dual-mode automation framework and conversational intelligence bot for Chitchat.gg",
+  "main": "hunter_ui.js",
   "scripts": {
     "start": "node hunter_ui.js",
     "ui": "node hunter_ui.js",
     "ui:headless": "node hunter_ui.js --headless",
-    "backend": "python3 hunter_backend.py"
+    "backend": "python3 hunter_backend.py",
+    "test:ui": "node tests/test_ui.js",
+    "test:backend": "python3 tests/test_backend.py",
+    "test:timeout": "node tests/test_timeout.js"
   },
-  "keywords": ["chitchat", "filter", "automation"],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "chitchat",
+    "automation",
+    "socketio",
+    "bot",
+    "puppeteer",
+    "reverse-engineering"
+  ],
+  "author": "dulithdivisekara",
+  "license": "MIT",
   "dependencies": {
     "puppeteer-core": "^23.6.0"
   }
