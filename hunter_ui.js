@@ -207,8 +207,8 @@ class ChitchatUIHunter {
           <style>
             #girl-hunter-hud {
               position: fixed;
-              top: 14px;
-              right: 20px;
+              top: 65px;
+              right: 24px;
               z-index: 9999999;
               background: rgba(16, 17, 24, 0.94);
               backdrop-filter: blur(14px);
@@ -373,19 +373,26 @@ class ChitchatUIHunter {
   async triggerSkip() {
     this.skipRequested = false;
     try {
-      // 1. Try cycle button (.t-match-cycle-button)
+      // 1. Try Quick skip button first (instant 1-click skip)
+      const quick = await this.page.$('button[aria-label="Quick skip"]');
+      if (quick) {
+        await quick.click().catch(() => {});
+        await new Promise(r => setTimeout(r, 200));
+      }
+
+      // 2. Try cycle button (.t-match-cycle-button)
       const cycle = await this.page.$('.t-match-cycle-button');
       if (cycle) {
         await cycle.click().catch(() => {});
         await new Promise(r => setTimeout(r, 200));
-        await cycle.click().catch(() => {});
-      } else {
-        const quick = await this.page.$('button[aria-label="Quick skip"]');
-        if (quick) await quick.click().catch(() => {});
+        const cycleText = await this.page.evaluate(el => el.innerText, cycle).catch(() => '');
+        if (cycleText.includes('CONFIRM') || cycleText.includes('START')) {
+          await cycle.click().catch(() => {});
+        }
       }
 
       await new Promise(r => setTimeout(r, 300));
-      // 2. Start button if in lobby
+      // 3. Start button if in lobby
       const start = await this.page.$('.search-action-button');
       if (start) await start.click().catch(() => {});
     } catch (e) {}
@@ -395,10 +402,25 @@ class ChitchatUIHunter {
     try {
       const textarea = await this.page.$('textarea[name="message"]');
       if (textarea) {
+        const isDisabled = await this.page.evaluate(el => el.disabled, textarea);
+        if (isDisabled) return false;
+
         await textarea.click();
-        await textarea.type(text, { delay: 35 });
-        await new Promise(r => setTimeout(r, 150));
+        await textarea.type(text, { delay: 30 });
+        await new Promise(r => setTimeout(r, 100));
         await this.page.keyboard.press('Enter');
+
+        // Verify if textarea was cleared; if not, force submit via event
+        await new Promise(r => setTimeout(r, 100));
+        await this.page.evaluate(() => {
+          const ta = document.querySelector('textarea[name="message"]');
+          if (ta && ta.value.trim().length > 0) {
+            ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', which: 13, keyCode: 13, bubbles: true }));
+            const form = ta.closest('form');
+            if (form) form.requestSubmit();
+          }
+        });
+
         console.log(`\x1b[96m\x1b[1m[You (Sahan)]:\x1b[0m \x1b[96m"${text}"\x1b[0m`);
         return true;
       }
@@ -437,7 +459,9 @@ class ChitchatUIHunter {
       }
 
       const isLobby = !!document.querySelector('.search-action-button') && !hasActiveTextarea;
-      const isDisconnected = !hasActiveTextarea && !isLobby && !!partner;
+      const isLeft = document.body.innerText.includes('left the chat') ||
+                     document.body.innerText.includes('Chat ended');
+      const isDisconnected = (!hasActiveTextarea && !isLobby && !!partner) || isLeft;
 
       return { partner, hasActiveTextarea, messages, isLobby, isDisconnected };
     }, this.myUsername);
@@ -498,6 +522,7 @@ class ChitchatUIHunter {
       const state = await this.getChatState();
       if (state.isDisconnected || state.partner !== partner) {
         console.log(`\x1b[93m[x] @${partner} disconnected.\x1b[0m`);
+        await this.triggerSkip();
         return false;
       }
 
@@ -623,8 +648,8 @@ class ChitchatUIHunter {
         continue;
       }
 
-      // Human pause
-      await new Promise(r => setTimeout(r, 1200));
+      // Human pause (fast enough to catch mobile users)
+      await new Promise(r => setTimeout(r, 500));
 
       // 3. Send initial screening text
       await this.updateHUD(`Asking @${partner}: "f or m?"`);
@@ -650,6 +675,8 @@ class ChitchatUIHunter {
         if (state.isDisconnected || (state.partner && state.partner !== partner)) {
           console.log('\x1b[93m[x] Stranger disconnected.\x1b[0m');
           isAnswered = true;
+          await this.updateHUD(`@${partner} disconnected.`);
+          await this.triggerSkip();
           break;
         }
 
