@@ -34,6 +34,7 @@ class ChitchatClient:
         self.on_message_callback = None
         self.on_match_callback = None
         self.on_disconnect_callback = None
+        self.on_typing_callback = None
 
     def get_me(self):
         """Fetch current user profile."""
@@ -172,14 +173,36 @@ class ChitchatClient:
                     event_data = payload[1] if len(payload) > 1 else None
 
                     if event_name == "matchUpdate":
-                        if event_data and "match" in event_data:
-                            self.active_match = event_data["match"]
-                            if self.on_match_callback:
-                                self.on_match_callback(event_data["match"])
+                        if not event_data or not isinstance(event_data, dict):
+                            continue
+
+                        # Ignore pure queue updates (e.g. {"inQueue": true}) - NOT a match, NOT a disconnect!
+                        if "inQueue" in event_data and "match" not in event_data:
+                            continue
+
+                        match_obj = event_data.get("match")
+                        if match_obj and isinstance(match_obj, dict):
+                            closure = match_obj.get("closure", {})
+                            if closure.get("closed"):
+                                # Stranger or user closed the match
+                                self.active_match = None
+                                if self.on_disconnect_callback:
+                                    self.on_disconnect_callback()
+                            else:
+                                # Confirmed active match
+                                self.active_match = match_obj
+                                if self.on_match_callback:
+                                    self.on_match_callback(match_obj)
                         else:
                             self.active_match = None
                             if self.on_disconnect_callback:
                                 self.on_disconnect_callback()
+
+                    elif event_name == "typing":
+                        if event_data and isinstance(event_data, dict):
+                            author_id = event_data.get("userId")
+                            if author_id != self.my_user_id and self.on_typing_callback:
+                                self.on_typing_callback(event_data)
 
                     elif event_name == "chatMessage":
                         if event_data and "message" in event_data:

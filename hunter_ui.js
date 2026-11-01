@@ -473,9 +473,15 @@ class ChitchatUIHunter {
         cycleText === 'START'
       );
 
+      const isTyping = !!(main && (
+        main.querySelector('.typing-indicator, [data-typing], .typing-dots') ||
+        main.innerText.includes('is typing') ||
+        main.innerText.includes('typing...')
+      ));
+
       const isDisconnected = (!hasActiveTextarea && !isLobby && !!partner) || isEnded;
 
-      return { partner, hasActiveTextarea, messages, isLobby, isDisconnected };
+      return { partner, hasActiveTextarea, messages, isLobby, isDisconnected, isTyping };
     }, this.myUsername);
   }
 
@@ -522,7 +528,7 @@ class ChitchatUIHunter {
     sendDesktopNotification(`💖 GIRL FOUND: @${partner}`, `Screening: "${initialText}"\nAuto-chatting for Instagram...`);
 
     let askedInsta = false;
-    const startConvo = Date.now();
+    let startConvo = Date.now();
 
     // Icebreaker
     await new Promise(r => setTimeout(r, 1000));
@@ -547,6 +553,10 @@ class ChitchatUIHunter {
         return false;
       }
 
+      if (state.isTyping) {
+        startConvo = Date.now();
+      }
+
       if (!this.autoChatEnabled) {
         // User took over manual chat
         await this.updateHUD(`Manual chat with @${partner}...`, true);
@@ -559,6 +569,7 @@ class ChitchatUIHunter {
       for (const msg of strangerMsgs) {
         this.seenMessageIds.add(msg.id);
         const text = msg.text;
+        startConvo = Date.now();
         console.log(`\x1b[95m[@${partner}]:\x1b[0m "${text}"`);
 
         // Check if she provided Instagram
@@ -699,6 +710,11 @@ class ChitchatUIHunter {
           await this.updateHUD(`@${partner} disconnected.`);
           await this.triggerSkip();
           break;
+        }
+
+        if (state.isTyping) {
+          console.log(`\x1b[96m[*] @${partner} is typing... (extending timeout)\x1b[0m`);
+          startTime = Date.now();
         }
 
         const strangerMsgs = state.messages.filter(m => !m.isMe && !m.isSystem && !this.seenMessageIds.has(m.id));

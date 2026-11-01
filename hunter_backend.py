@@ -130,6 +130,7 @@ class InstagramHunter:
         self.partner_username = None
         self.match_event = asyncio.Event()
         self.disconnect_event = asyncio.Event()
+        self.typing_event = asyncio.Event()
         self.message_queue = asyncio.Queue()
         self.saved_instagrams = []
         self.stats = {"checked": 0, "males": 0, "girls": 0, "timeouts": 0}
@@ -154,6 +155,7 @@ class InstagramHunter:
         self.client.on_match_callback = self.on_match
         self.client.on_message_callback = self.on_message
         self.client.on_disconnect_callback = self.on_disconnect
+        self.client.on_typing_callback = self.on_typing
 
         asyncio.create_task(self.client.ws_loop())
 
@@ -175,6 +177,9 @@ class InstagramHunter:
     def on_message(self, msg):
         asyncio.create_task(self.message_queue.put(msg))
 
+    def on_typing(self, data):
+        self.typing_event.set()
+
     def on_disconnect(self):
         self.disconnect_event.set()
 
@@ -186,6 +191,7 @@ class InstagramHunter:
         self.partner_username = None
         self.match_event.clear()
         self.disconnect_event.clear()
+        self.typing_event.clear()
         # Settle delay
         await asyncio.sleep(0.8)
         while not self.message_queue.empty():
@@ -250,16 +256,23 @@ class InstagramHunter:
         asked_insta = False
         convo_start = asyncio.get_event_loop().time()
 
-        while asyncio.get_event_loop().time() - convo_start < 55.0:
+        while asyncio.get_event_loop().time() - convo_start < 60.0:
             if self.disconnect_event.is_set():
                 print(f"{YELLOW}[x] @{partner} disconnected.{RESET}")
                 await self.close_match()
                 return False
 
+            if self.typing_event.is_set():
+                self.typing_event.clear()
+                convo_start = asyncio.get_event_loop().time()
+
             try:
                 msg = await asyncio.wait_for(self.message_queue.get(), timeout=1.0)
             except asyncio.TimeoutError:
                 continue
+
+            # Reset conversation timer on message receipt
+            convo_start = asyncio.get_event_loop().time()
 
             content = msg.get("content", "").strip()
             print(f"{MAGENTA}[@{partner}]:{RESET} \"{content}\"")
@@ -375,6 +388,11 @@ class InstagramHunter:
                 print(f"{YELLOW}[x] Stranger disconnected.{RESET}")
                 is_answered = True
                 break
+
+            if self.typing_event.is_set():
+                self.typing_event.clear()
+                print(f"{CYAN}[*] @{partner} is typing... (extending timeout){RESET}")
+                start_time = asyncio.get_event_loop().time()
 
             try:
                 msg = await asyncio.wait_for(self.message_queue.get(), timeout=1.0)
