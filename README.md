@@ -4,7 +4,7 @@
   </a>
 </p>
 
-<h1 align="center">Chitchat Automation Suite</h1>
+<h1 align="center">Chitchat Chick Hunt</h1>
 
 <p align="center">
   High-performance dual-engine automation framework and natural conversation bot for <a href="https://chitchat.gg">Chitchat.gg</a>.
@@ -32,7 +32,7 @@
 
 ## Overview
 
-The Chitchat Automation Suite provides a modular framework for automated matchmaking, demographic screening, and natural dialogue on Chitchat.gg. Designed with reliability and performance in mind, it supports two independent runtime implementations:
+**Chitchat Chick Hunt** is a modular framework for automated matchmaking, demographic screening, and natural dialogue on Chitchat.gg. Designed with reliability and performance in mind, it supports two independent runtime implementations:
 
 1. **Headless Backend Engine (`hunter_backend.py`)**: A browser-independent, event-driven client using Python, `requests`, and real-time Socket.IO v4 over WebSockets. Operates with sub-second matchmaking cycles and negligible resource consumption (~15 MB RAM).
 2. **Visual Browser Engine (`hunter_ui.js`)**: A Chromium-based browser client powered by Puppeteer with stealth patches and an in-page Head-Up Display (HUD) overlay for real-time monitoring and manual takeover.
@@ -140,8 +140,8 @@ Both engines log all inbound and outbound events to `hunter.log` in real time:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/dulithdivisekara/chitchat-automation-suite.git
-   cd chitchat-automation-suite
+   git clone https://github.com/dulithdivisekara/chitchat-chick-hunt.git
+   cd chitchat-chick-hunt
    ```
 
 2. Install Python dependencies:

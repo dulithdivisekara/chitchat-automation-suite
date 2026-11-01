@@ -1,5 +1,5 @@
 {
-  "name": "chitchat-automation-suite",
+  "name": "chitchat-chick-hunt",
   "version": "2.0.0",
   "description": "High-performance dual-mode automation framework and conversational intelligence bot for Chitchat.gg",
   "main": "hunter_ui.js",
