@@ -67,11 +67,127 @@ function classifyGender(text) {
   return 'unknown';
 }
 
+// Demographic & Keyword Sets
+const MALE_KEYWORDS = new Set([
+  'guy', 'dude', 'bro', 'boy', 'boyz', 'man', 'men', 'male', 'fella', 'dawg',
+  'gentleman', 'chad', 'lad', 'mr', 'sir', 'king', 'prince', 'lord', 'daddy',
+  'dad', 'father', 'son', 'femboy', 'm4f', 'm4m', 'm4a', 'broy', 'subdude', 'cock', 'dick'
+]);
+
+const COMMON_MALE_NAMES = new Set([
+  'alex', 'adam', 'andrew', 'anthony', 'ben', 'brandon', 'brian', 'chris',
+  'christian', 'cody', 'daniel', 'david', 'dylan', 'eric', 'ethan', 'george',
+  'jack', 'jackson', 'jacob', 'james', 'jason', 'john', 'johnny', 'jordan',
+  'josh', 'joshua', 'justin', 'kevin', 'kyle', 'lucas', 'luke', 'mark',
+  'matt', 'matthew', 'max', 'michael', 'mikey', 'nathan', 'nick', 'noah',
+  'omar', 'patrick', 'paul', 'peter', 'ryan', 'sam', 'sean', 'stephen',
+  'thomas', 'tyler', 'william', 'zach', 'zack', 'ali', 'ahmed', 'mohamed',
+  'baker', 'srijal', 'dadbod', 'steve', 'tom', 'tim', 'robert', 'richard'
+]);
+
+const FEMALE_KEYWORDS = new Set([
+  'girl', 'girlz', 'girly', 'female', 'woman', 'women', 'lady', 'queen',
+  'princess', 'miss', 'ms', 'mrs', 'chick', 'babe', 'shawty', 'f4m', 'f4a',
+  'femme', 'she', 'her'
+]);
+
+const COMMON_FEMALE_NAMES = new Set([
+  'emma', 'olivia', 'ava', 'isabella', 'sophia', 'mia', 'charlotte', 'amelia',
+  'harper', 'evelyn', 'abigail', 'emily', 'elizabeth', 'mila', 'ella', 'avery',
+  'sofia', 'camila', 'aria', 'scarlett', 'victoria', 'madison', 'luna', 'grace',
+  'chloe', 'penelope', 'layla', 'riley', 'zoey', 'nora', 'lily', 'eleanor',
+  'hannah', 'lillian', 'addison', 'aubrey', 'ellie', 'stella', 'natalie', 'zoe',
+  'leah', 'hazel', 'violet', 'aurora', 'savannah', 'audrey', 'brooklyn', 'bella',
+  'claire', 'skylar', 'sarah', 'lucy', 'anna', 'maya', 'sara', 'elena', 'alice'
+]);
+
+const COUNTRIES_AND_PLACES = {
+  usa: 'USA', us: 'USA', america: 'USA', 'united states': 'USA',
+  cali: 'California, USA', california: 'California, USA', ny: 'New York, USA',
+  'new york': 'New York, USA', texas: 'Texas, USA', florida: 'Florida, USA',
+  uk: 'United Kingdom', london: 'London, UK', england: 'England, UK',
+  canada: 'Canada', toronto: 'Toronto, Canada', vancouver: 'Vancouver, Canada',
+  australia: 'Australia', sydney: 'Sydney, Australia', melbourne: 'Melbourne, Australia',
+  germany: 'Germany', berlin: 'Berlin, Germany', france: 'France', paris: 'Paris, France',
+  india: 'India', delhi: 'Delhi, India', mumbai: 'Mumbai, India',
+  'sri lanka': 'Sri Lanka', colombo: 'Colombo, Sri Lanka',
+  italy: 'Italy', spain: 'Spain', netherlands: 'Netherlands',
+  philippines: 'Philippines', brazil: 'Brazil', japan: 'Japan'
+};
+
 function isMaleUsername(username) {
-  const lower = username.toLowerCase();
-  // Strict matching only to avoid false positive skips on random adjective-noun usernames
-  if (/(^|\s|\(|-)(male|boy|dude|bro|femboy|m4f|m4m)(\s|\)|-|$)/i.test(lower)) return true;
+  const raw = username.trim();
+  const clean = raw.replace(/[^\w\s]/g, ' ');
+  const tokens = clean.split(/\s+/).filter(Boolean).map(t => t.toLowerCase());
+
+  for (const t of tokens) {
+    if (MALE_KEYWORDS.has(t) || COMMON_MALE_NAMES.has(t)) return true;
+    if (/^m\d{1,2}$|^\d{1,2}m$|^m$/.test(t)) return true;
+  }
+
+  const lower = raw.toLowerCase();
+  if (/\b(m|male)\b/.test(lower)) return true;
+  if (/(guy|dude|boy|dawg|femboy|dadbod)/i.test(lower)) return true;
+  if (/[a-z]Man\b/.test(raw) || (/\bman\b/.test(lower) && !/\b(woman|human|german)\b/.test(lower))) {
+    return true;
+  }
+
   return false;
+}
+
+function isFemaleUsername(username) {
+  const raw = username.trim();
+  const clean = raw.replace(/[^\w\s]/g, ' ');
+  const tokens = clean.split(/\s+/).filter(Boolean).map(t => t.toLowerCase());
+
+  for (const t of tokens) {
+    if (FEMALE_KEYWORDS.has(t) || COMMON_FEMALE_NAMES.has(t)) return true;
+    if (/^f\d{1,2}$|^\d{1,2}f$|^f$/.test(t)) return true;
+  }
+
+  const lower = raw.toLowerCase();
+  if (/\b(female|girl|girly|queen|princess|lady)\b/.test(lower)) return true;
+  return false;
+}
+
+function extractMetadataFromConvo(messages) {
+  const fullText = messages.join(' ').toLowerCase();
+  const data = {
+    age: 'N/A',
+    location: 'N/A',
+    interests: 'Casual Chat',
+    notes: 'Pleasant conversation'
+  };
+
+  const ageMatch = fullText.match(/\b(1[89]|[2-5][0-9])\s*(?:yo|y\/o|years?\s*old|f\b|\b)/);
+  if (ageMatch) data.age = ageMatch[1];
+
+  for (const [key, name] of Object.entries(COUNTRIES_AND_PLACES)) {
+    const rx = new RegExp(`\\b${key}\\b`, 'i');
+    if (rx.test(fullText)) {
+      data.location = name;
+      break;
+    }
+  }
+
+  const interestMap = {
+    Music: ['song', 'music', 'listen', 'band', 'spotify', 'taylor', 'pop', 'indie', 'rock'],
+    Student: ['study', 'studying', 'college', 'uni', 'university', 'school', 'exam', 'class'],
+    Gaming: ['game', 'gaming', 'valorant', 'minecraft', 'roblox', 'fortnite'],
+    Art: ['art', 'draw', 'drawing', 'paint', 'painting', 'design'],
+    Fitness: ['gym', 'workout', 'fitness', 'training', 'run', 'running'],
+    'Movies & Shows': ['netflix', 'movie', 'movies', 'show', 'anime', 'watch']
+  };
+
+  const found = [];
+  for (const [cat, words] of Object.entries(interestMap)) {
+    if (words.some(w => new RegExp(`\\b${w}\\b`, 'i').test(fullText))) {
+      found.push(cat);
+    }
+  }
+  if (found.length) data.interests = found.join(', ');
+
+  return data;
 }
 
 function extractInstagramHandle(text, askedForInsta = false) {
@@ -106,36 +222,40 @@ function extractInstagramHandle(text, askedForInsta = false) {
   return null;
 }
 
-function recordInstagramToFile(handle, partner, extraInfo = '') {
+function recordInstagramToFile(handle, partner, convoHistory = [], extraInfo = '') {
   const cleanHandle = handle.replace(/^@/, '');
   const profileUrl = `https://instagram.com/${cleanHandle}`;
   const now = new Date();
   const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
+  const metadata = extractMetadataFromConvo(convoHistory);
+  const notes = extraInfo ? `Initial: ${extraInfo}` : 'Natural conversation';
+
   let existing = '';
   if (fs.existsSync(STORAGE_FILE)) {
     existing = fs.readFileSync(STORAGE_FILE, 'utf-8');
   } else {
-    existing = `# Extracted Instagram Profiles (Chitchat.gg)\n\n| # | Instagram Handle | Profile Link | Chitchat Username | Detected Info | Date & Time |\n|---|---|---|---|---|---|\n`;
+    existing = `# 💖 Extracted Profiles & Contact Directory (Chitchat.gg)\n\n| # | Instagram Handle | Profile Link | Chitchat Username | Age | Location / Country | Interests & Highlights | Chat Notes | Date & Time |\n|:---:|---|---|---|:---:|---|---|---|---|\n`;
     fs.writeFileSync(STORAGE_FILE, existing);
   }
 
   const rows = existing.split('\n').filter(l => l.startsWith('|') && !l.includes('---') && !l.includes('Instagram Handle'));
   const nextNum = rows.length + 1;
 
-  const entry = `| ${nextNum} | \`@${cleanHandle}\` | [${cleanHandle}](${profileUrl}) | @${partner} | ${extraInfo} | ${timestamp} |\n`;
+  const entry = `| ${nextNum} | \`@${cleanHandle}\` | [${cleanHandle}](${profileUrl}) | @${partner} | ${metadata.age} | ${metadata.location} | ${metadata.interests} | ${notes} | ${timestamp} |\n`;
   fs.appendFileSync(STORAGE_FILE, entry);
 
   console.log('\n' + '★'.repeat(65));
   console.log(`🎉 [INSTAGRAM CAPTURED] #${nextNum}: @${cleanHandle}`);
   console.log(`🔗 Profile: ${profileUrl}`);
+  console.log(`📍 Location: ${metadata.location} | Age: ${metadata.age} | Interests: ${metadata.interests}`);
   console.log(`📁 Stored in: ${STORAGE_FILE}`);
   console.log('★'.repeat(65) + '\n');
 
   playAlertSound();
-  sendDesktopNotification(`🎉 INSTAGRAM CAPTURED: @${cleanHandle}`, `From @${partner}\nSaved to ${STORAGE_FILE}!`);
+  sendDesktopNotification(`🎉 INSTAGRAM CAPTURED: @${cleanHandle}`, `From @${partner} (${metadata.location})\nSaved to ${STORAGE_FILE}!`);
 
-  return { handle: cleanHandle, url: profileUrl, partner, timestamp };
+  return { handle: cleanHandle, url: profileUrl, partner, age: metadata.age, location: metadata.location, timestamp };
 }
 
 class ChitchatUIHunter {
@@ -527,19 +647,22 @@ class ChitchatUIHunter {
     playAlertSound();
     sendDesktopNotification(`💖 GIRL FOUND: @${partner}`, `Screening: "${initialText}"\nAuto-chatting for Instagram...`);
 
+    const convoHistory = [initialText];
     let askedInsta = false;
+    let convoStage = 1; // 1: Origin/location, 2: Activity/vibe, 3: Instagram ask
     let startConvo = Date.now();
 
     // Icebreaker
     await new Promise(r => setTimeout(r, 1000));
     const locMatch = initialText.toLowerCase().match(/\b(ny|cali|california|texas|florida|uk|canada|germany|australia|india|london)\b/);
     if (locMatch) {
-      await this.sendChatMessage(`heyy nice to meet u :) how's everything in ${locMatch[1].toUpperCase()}?`);
+      await this.sendChatMessage(`heyy nice to meet u :) how's everything over in ${locMatch[1].toUpperCase()}?`);
+      convoStage = 2;
     } else {
-      await this.sendChatMessage('heyy nice to meet u :) where u from?');
+      await this.sendChatMessage('heyy nice to meet u :) where are u from?');
     }
 
-    while (Date.now() - startConvo < 60000) {
+    while (Date.now() - startConvo < 70000) {
       if (this.skipRequested) {
         console.log('[*] Skip requested by user.');
         await this.triggerSkip();
@@ -569,19 +692,20 @@ class ChitchatUIHunter {
       for (const msg of strangerMsgs) {
         this.seenMessageIds.add(msg.id);
         const text = msg.text;
+        convoHistory.push(text);
         startConvo = Date.now();
         console.log(`\x1b[95m[@${partner}]:\x1b[0m "${text}"`);
 
         // Check if she provided Instagram
         const handle = extractInstagramHandle(text, askedInsta);
         if (handle) {
-          const rec = recordInstagramToFile(handle, partner, initialText);
+          const rec = recordInstagramToFile(handle, partner, convoHistory, initialText);
           this.savedInstagrams.push(rec);
           this.stats.captured = this.savedInstagrams.length;
           await this.updateHUD(`🎉 CAPTURED: @${handle}!`, true);
 
           await new Promise(r => setTimeout(r, 1200));
-          await this.sendChatMessage('awesome, just added u! talk to u there, have a great day :)');
+          await this.sendChatMessage('awesome, just added u! talk to u there, have a wonderful day :)');
           await new Promise(r => setTimeout(r, 2000));
           await this.triggerSkip();
           return true;
@@ -605,7 +729,7 @@ class ChitchatUIHunter {
 
         if (/\b(what'?s\s+ur\s+name|who\s+are\s+u|who\s+r\s+u|ur\s+name)\b/i.test(lower)) {
           await new Promise(r => setTimeout(r, 1200));
-          await this.sendChatMessage("i'm Sahan :) nice to meet u! what's your name?");
+          await this.sendChatMessage("i'm Sahan :) what's your name?");
           continue;
         }
 
@@ -621,18 +745,29 @@ class ChitchatUIHunter {
           continue;
         }
 
-        // Ask for Instagram
-        if (!askedInsta) {
+        // Stage-based conversational flow
+        if (convoStage === 1) {
+          await new Promise(r => setTimeout(r, 1200));
+          await this.sendChatMessage("oh that's really cool! what are u up to today? studying, working or just chilling haha");
+          convoStage = 2;
+        } else if (convoStage === 2) {
           await new Promise(r => setTimeout(r, 1400));
-          await this.sendChatMessage("btw u seem really sweet haha, u got insta? drop ur @ so we can chat there :)");
+          await this.sendChatMessage("haha you're really fun to talk to, honestly chitchat always disconnects people randomly lol. do u have an insta so we don't lose touch? only if u're comfortable of course :)");
           askedInsta = true;
-        } else {
+          convoStage = 3;
+        } else if (convoStage === 3) {
           if (lower.includes('why') || lower.includes('for what')) {
             await new Promise(r => setTimeout(r, 1200));
-            await this.sendChatMessage("chitchat disconnects randomly haha, drop ur @!");
+            await this.sendChatMessage("chitchat drops connection randomly haha, just thought you had great vibes! what's ur @? i'll just say hi :)");
           } else if (lower.includes('wbu') || lower.includes('ur @') || lower.includes('urs')) {
             await new Promise(r => setTimeout(r, 1200));
-            await this.sendChatMessage("i'll follow u right now! what's your @?");
+            await this.sendChatMessage("i'll follow u right now! what's your @? :)");
+          } else if (lower.includes('no') || lower.includes('nah') || lower.includes('dont have') || lower.includes("don't have")) {
+            await new Promise(r => setTimeout(r, 1000));
+            await this.sendChatMessage("haha no worries at all, totally respect that! hope you have a great day :)");
+            await new Promise(r => setTimeout(r, 1500));
+            await this.triggerSkip();
+            return false;
           } else {
             await new Promise(r => setTimeout(r, 1000));
             await this.sendChatMessage("what's your @? :)");
@@ -671,23 +806,29 @@ class ChitchatUIHunter {
       this.lastPartner = partner;
       console.log(`\x1b[93m[*] Connected with:\x1b[0m \x1b[1m@${partner}\x1b[0m`);
 
-      // 2. Instant username check
+      // 2. Instant username check (Male)
       if (isMaleUsername(partner)) {
-        console.log(`\x1b[91m[⚡ SKIP] Male keyword in username (@${partner}). Skipping immediately!\x1b[0m`);
+        console.log(`\x1b[91m[⚡ SKIP] Male indicator in username (@${partner}). Skipping immediately!\x1b[0m`);
         this.stats.males++;
-        await this.updateHUD(`Skipped male username: @${partner}`);
+        await this.updateHUD(`Skipped male: @${partner}`);
         await this.triggerSkip();
         continue;
       }
 
-      // Human pause (fast enough to catch mobile users)
+      // 3. Instant username check (Female)
+      if (isFemaleUsername(partner)) {
+        console.log(`\x1b[95m[💖 FEMALE USERNAME DETECTED: @${partner}]\x1b[0m`);
+        this.stats.girls++;
+        await this.engageGirl(`username: @${partner}`, partner);
+        continue;
+      }
+
+      // 4. Neutral Username: Friendly, organic greeting
       await new Promise(r => setTimeout(r, 500));
+      await this.updateHUD(`Saying hi to @${partner}...`);
+      await this.sendChatMessage("heyy :) how's your day going?");
 
-      // 3. Send initial screening text
-      await this.updateHUD(`Asking @${partner}: "f or m?"`);
-      await this.sendChatMessage('f or m?');
-
-      // 4. Monitor reply (up to 18 seconds)
+      // 5. Monitor reply (up to 18 seconds)
       const startTime = Date.now();
       let handledCounter = false;
       let handledGreeting = false;
@@ -750,12 +891,26 @@ class ChitchatUIHunter {
           } else if (gender === 'counter' && !handledCounter) {
             handledCounter = true;
             await new Promise(r => setTimeout(r, 900));
-            await this.sendChatMessage('m, Sahan here :) u?');
+            await this.sendChatMessage("i'm a guy, Sahan :) what about u?");
 
-          } else if (gender === 'greeting' && !handledGreeting) {
+          } else if ((gender === 'greeting' || ['good', 'fine', 'ok', 'chilling', 'bored', 'well', 'nothing'].some(w => text.toLowerCase().includes(w))) && !handledGreeting) {
             handledGreeting = true;
-            await new Promise(r => setTimeout(r, 900));
-            await this.sendChatMessage('hey! f or m? :)');
+            await new Promise(r => setTimeout(r, 1100));
+            await this.sendChatMessage("pretty good! i'm Sahan btw :) r u a boy or a girl? don't wanna assume haha");
+
+          } else if (/\b(girl|female|woman)\b/i.test(text)) {
+            this.stats.girls++;
+            isAnswered = true;
+            await this.engageGirl(text, partner);
+            break;
+
+          } else if (/\b(boy|guy|man|male)\b/i.test(text)) {
+            this.stats.males++;
+            isAnswered = true;
+            console.log(`\x1b[91m[⚡ SKIP] Male detected ("${text}"). Skipping immediately...\x1b[0m`);
+            await this.updateHUD(`Skipped male: "${text}"`);
+            await this.triggerSkip();
+            break;
           }
         }
 

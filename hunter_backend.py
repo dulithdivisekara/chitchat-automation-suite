@@ -18,39 +18,103 @@ RED = "\033[91m"
 BOLD = "\033[1m"
 RESET = "\033[0m"
 
-def play_alert_sound():
-    try:
-        subprocess.Popen(
-            "canberra-gtk-play -i message || pw-play /usr/share/sounds/freedesktop/stereo/complete.oga || printf '\\a'",
-            shell=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-    except Exception:
-        sys.stdout.write('\a')
-        sys.stdout.flush()
+# ─────────────────────────────────────────────────────────────
+# 1. Demographic & Gender Classifiers
+# ─────────────────────────────────────────────────────────────
 
-def send_desktop_notification(title, message):
-    try:
-        safe_title = title.replace('"', '\\"')
-        safe_msg = message.replace('"', '\\"')
-        subprocess.Popen(
-            f'notify-send -u critical -t 15000 "{safe_title}" "{safe_msg}"',
-            shell=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-    except Exception:
-        pass
+MALE_KEYWORDS = {
+    "guy", "dude", "bro", "boy", "boyz", "man", "men", "male", "fella", "dawg",
+    "gentleman", "chad", "lad", "mr", "sir", "king", "prince", "lord", "daddy",
+    "dad", "father", "son", "femboy", "m4f", "m4m", "m4a", "broy", "subdude", "cock", "dick"
+}
+
+COMMON_MALE_NAMES = {
+    "alex", "adam", "andrew", "anthony", "ben", "brandon", "brian", "chris",
+    "christian", "cody", "daniel", "david", "dylan", "eric", "ethan", "george",
+    "jack", "jackson", "jacob", "james", "jason", "john", "johnny", "jordan",
+    "josh", "joshua", "justin", "kevin", "kyle", "lucas", "luke", "mark",
+    "matt", "matthew", "max", "michael", "mikey", "nathan", "nick", "noah",
+    "omar", "patrick", "paul", "peter", "ryan", "sam", "sean", "stephen",
+    "thomas", "tyler", "william", "zach", "zack", "ali", "ahmed", "mohamed",
+    "baker", "srijal", "dadbod", "steve", "tom", "tim", "robert", "richard"
+}
+
+FEMALE_KEYWORDS = {
+    "girl", "girlz", "girly", "female", "woman", "women", "lady", "queen",
+    "princess", "miss", "ms", "mrs", "chick", "babe", "shawty", "f4m", "f4a",
+    "femme", "she", "her"
+}
+
+COMMON_FEMALE_NAMES = {
+    "emma", "olivia", "ava", "isabella", "sophia", "mia", "charlotte", "amelia",
+    "harper", "evelyn", "abigail", "emily", "elizabeth", "mila", "ella", "avery",
+    "sofia", "camila", "aria", "scarlett", "victoria", "madison", "luna", "grace",
+    "chloe", "penelope", "layla", "riley", "zoey", "nora", "lily", "eleanor",
+    "hannah", "lillian", "addison", "aubrey", "ellie", "stella", "natalie", "zoe",
+    "leah", "hazel", "violet", "aurora", "savannah", "audrey", "brooklyn", "bella",
+    "claire", "skylar", "sarah", "lucy", "anna", "maya", "sara", "elena", "alice"
+}
+
+COUNTRIES_AND_PLACES = {
+    "usa": "USA", "us": "USA", "america": "USA", "united states": "USA",
+    "cali": "California, USA", "california": "California, USA", "ny": "New York, USA",
+    "new york": "New York, USA", "texas": "Texas, USA", "florida": "Florida, USA",
+    "uk": "United Kingdom", "london": "London, UK", "england": "England, UK",
+    "canada": "Canada", "toronto": "Toronto, Canada", "vancouver": "Vancouver, Canada",
+    "australia": "Australia", "sydney": "Sydney, Australia", "melbourne": "Melbourne, Australia",
+    "germany": "Germany", "berlin": "Berlin, Germany", "france": "France", "paris": "Paris, France",
+    "india": "India", "delhi": "Delhi, India", "mumbai": "Mumbai, India",
+    "sri lanka": "Sri Lanka", "colombo": "Colombo, Sri Lanka",
+    "italy": "Italy", "spain": "Spain", "netherlands": "Netherlands",
+    "philippines": "Philippines", "brazil": "Brazil", "japan": "Japan",
+    "sweden": "Sweden", "norway": "Norway", "new zealand": "New Zealand"
+}
+
+def is_male_username(username):
+    raw = username.strip()
+    clean = re.sub(r'[^\w\s]', ' ', raw)
+    tokens = [t.lower() for t in clean.split() if t]
+
+    for t in tokens:
+        if t in MALE_KEYWORDS or t in COMMON_MALE_NAMES:
+            return True
+        if re.fullmatch(r'm\d{1,2}|\d{1,2}m|m', t):
+            return True
+
+    lower = raw.lower()
+    if re.search(r'\b(m|male)\b', lower):
+        return True
+    if re.search(r'(guy|dude|boy|dawg|femboy|dadbod)', lower):
+        return True
+    if re.search(r'[a-z]Man\b', raw) or (re.search(r'\bman\b', lower) and not re.search(r'\b(woman|human|german)\b', lower)):
+        return True
+
+    return False
+
+def is_female_username(username):
+    raw = username.strip()
+    clean = re.sub(r'[^\w\s]', ' ', raw)
+    tokens = [t.lower() for t in clean.split() if t]
+
+    for t in tokens:
+        if t in FEMALE_KEYWORDS or t in COMMON_FEMALE_NAMES:
+            return True
+        if re.fullmatch(r'f\d{1,2}|\d{1,2}f|f', t):
+            return True
+
+    lower = raw.lower()
+    if re.search(r'\b(female|girl|girly|queen|princess|lady)\b', lower):
+        return True
+    return False
 
 def classify_gender(text):
     clean = text.lower().strip()
 
-    # 1. Underage safety check (Critical: skip minors immediately to protect profile)
+    # 1. Underage safety check (Immediate termination)
     if re.search(r'(?:^|\b)(?:1[0-7]|underage|minor|child|kid)(?:f|m|\b)', clean):
         return "underage_skip"
 
-    # 2. Screening questions from stranger (e.g. "m or f", "f/m")
+    # 2. Counter screening questions from stranger
     if re.search(r'(^|\b)(f\s*or\s*m|m\s*or\s*f|m/f|f/m)($|\b)', clean):
         return "counter"
 
@@ -60,7 +124,7 @@ def classify_gender(text):
     if re.search(r"\bnot\s+(a\s+)?(boy|guy|man|male|m\b)", clean):
         return "female"
 
-    # 4. Female checks (e.g. "f", "19f", "f u?", "female wbu", "girl")
+    # 4. Female checks
     if re.search(r"(^|\b)(f|female|girl|woman|gurl|gril|fem)($|\b)", clean):
         return "female"
     if re.search(r"(^|\b)(\d{1,2}\s*f|f\s*\d{1,2}|f4m|f4a)($|\b)", clean):
@@ -68,7 +132,7 @@ def classify_gender(text):
     if re.search(r"\b(i\x27m|im|i\s*am)\s+(a\s+)?(girl|female|woman|fem|f)\b", clean):
         return "female"
 
-    # 5. Male checks (e.g. "m", "22m", "m u?", "boy", "guy")
+    # 5. Male checks
     if re.search(r"(^|\b)(m|male|boy|guy|man|bro|dude|cock|dick|femboy)($|\b)", clean):
         return "male"
     if re.search(r"(^|\b)(m\d{1,2}|\d{1,2}m|m\s*\d{1,2}|\d{1,2}\s*m|m4f|m4m|m4a)", clean):
@@ -76,7 +140,7 @@ def classify_gender(text):
     if re.search(r"\b(i\x27m|im|i\s*am)\s+(a\s+)?(boy|guy|man|male|dude|m)\b", clean):
         return "male"
 
-    # 6. Counter questions (only if no gender was stated)
+    # 6. Counter questions
     if re.search(r"(^|\b)(u\?|you\?|wbu|what\s+about\s+you|who\s+r\s+u|who\s+are\s+you)", clean):
         return "counter"
 
@@ -86,12 +150,47 @@ def classify_gender(text):
 
     return "unknown"
 
-def is_male_username(username):
-    lower = username.lower()
-    # Strict matching only to avoid false positive skips on random adjective-noun usernames
-    if re.search(r"(^|\s|\(|-)(male|boy|dude|bro|femboy|m4f|m4m)(\s|\)|-|$)", lower):
-        return True
-    return False
+def extract_metadata_from_convo(messages):
+    data = {
+        "age": "N/A",
+        "location": "N/A",
+        "interests": "Casual Chat",
+        "notes": "Pleasant conversation"
+    }
+
+    full_text = " ".join(messages).lower()
+
+    # 1. Age extraction
+    age_match = re.search(r'\b(1[89]|[2-5][0-9])\s*(?:yo|y/o|years?\s*old|f\b|\b)', full_text)
+    if age_match:
+        data["age"] = age_match.group(1)
+
+    # 2. Location extraction
+    for place_key, place_name in COUNTRIES_AND_PLACES.items():
+        if re.search(r'\b' + re.escape(place_key) + r'\b', full_text):
+            data["location"] = place_name
+            break
+
+    # 3. Interests extraction
+    interest_map = {
+        "Music": ["song", "music", "listen", "band", "spotify", "taylor", "pop", "indie", "rock", "hip hop"],
+        "Student": ["study", "studying", "college", "uni", "university", "school", "exam", "class"],
+        "Gaming": ["game", "gaming", "valorant", "minecraft", "roblox", "fortnite", "playstation", "xbox"],
+        "Art": ["art", "draw", "drawing", "paint", "painting", "design"],
+        "Fitness": ["gym", "workout", "fitness", "training", "run", "running"],
+        "Reading": ["read", "reading", "book", "books", "novel"],
+        "Movies & Shows": ["netflix", "movie", "movies", "show", "anime", "watch"]
+    }
+
+    found = []
+    for category, kw_list in interest_map.items():
+        if any(re.search(r'\b' + kw + r'\b', full_text) for kw in kw_list):
+            found.append(category)
+
+    if found:
+        data["interests"] = ", ".join(found)
+
+    return data
 
 def extract_instagram_handle(text, asked_for_insta=False):
     clean = text.strip()
@@ -123,6 +222,36 @@ def extract_instagram_handle(text, asked_for_insta=False):
 
     return None
 
+def play_alert_sound():
+    try:
+        subprocess.Popen(
+            "canberra-gtk-play -i message || pw-play /usr/share/sounds/freedesktop/stereo/complete.oga || printf '\\a'",
+            shell=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+    except Exception:
+        sys.stdout.write('\a')
+        sys.stdout.flush()
+
+def send_desktop_notification(title, message):
+    try:
+        safe_title = title.replace('"', '\\"')
+        safe_msg = message.replace('"', '\\"')
+        subprocess.Popen(
+            f'notify-send -u critical -t 15000 "{safe_title}" "{safe_msg}"',
+            shell=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+    except Exception:
+        pass
+
+
+# ─────────────────────────────────────────────────────────────
+# 2. Instagram Hunter Engine
+# ─────────────────────────────────────────────────────────────
+
 class InstagramHunter:
     def __init__(self):
         self.client = ChitchatClient()
@@ -140,7 +269,7 @@ class InstagramHunter:
         print(f"{BOLD}{CYAN}║     CHITCHAT LIVE BACKEND HUNTER - PERSONA: SAHAN          ║{RESET}")
         print(f"{BOLD}{CYAN}╚═════════════════════════════════════════════════════════════╝{RESET}\n")
         print(f"{YELLOW}[*] Goal:{RESET} Capture {BOLD}{TARGET_INSTAGRAM_COUNT}{RESET} girls' Instagram IDs into {BOLD}{STORAGE_FILE}{RESET}")
-        print(f"{YELLOW}[*] Persona:{RESET} Sahan from Sri Lanka (polite, relaxed, friendly)")
+        print(f"{YELLOW}[*] Persona:{RESET} Sahan from Sri Lanka (friendly, polite, respectful)")
         print(f"{YELLOW}[*] Mode:{RESET} 100% Backend API & Real-time WebSocket (Zero UI overhead)\n")
 
         me = self.client.get_me()
@@ -159,19 +288,18 @@ class InstagramHunter:
 
         asyncio.create_task(self.client.ws_loop())
 
-        # Cleanup any lingering match
-        active = self.client.get_active_match()
-        if active:
-            print(f"{YELLOW}[*] Disconnecting previous session...{RESET}")
-            self.client.disconnect_match(next_match=False)
-            await asyncio.sleep(1)
-
     def on_match(self, match):
-        self.active_conv_id = match.get("id")
-        participants = match.get("conversation", {}).get("participants", [])
-        strangers = [p["profile"]["username"] for p in participants if p["profile"]["id"] != self.client.my_user_id]
-        self.partner_username = strangers[0] if strangers else "Stranger"
-        self.disconnect_event.clear()
+        conv = match.get("conversation", {})
+        self.active_conv_id = conv.get("id")
+        participants = conv.get("participants", [])
+
+        self.partner_username = None
+        for p in participants:
+            prof = p.get("profile", {})
+            if prof.get("id") != self.client.my_user_id:
+                self.partner_username = prof.get("username")
+                break
+
         self.match_event.set()
 
     def on_message(self, msg):
@@ -184,16 +312,13 @@ class InstagramHunter:
         self.disconnect_event.set()
 
     async def close_match(self):
-        """Safely disconnect and settle lingering socket packets to prevent race conditions."""
-        if self.active_conv_id:
-            self.client.disconnect_match(next_match=False)
+        self.client.disconnect_match()
         self.active_conv_id = None
         self.partner_username = None
         self.match_event.clear()
         self.disconnect_event.clear()
         self.typing_event.clear()
-        # Settle delay
-        await asyncio.sleep(0.8)
+        await asyncio.sleep(0.6)
         while not self.message_queue.empty():
             try:
                 self.message_queue.get_nowait()
@@ -210,13 +335,19 @@ class InstagramHunter:
             self.client.send_message(self.active_conv_id, text)
             print(f"{CYAN}{BOLD}[You (Sahan)]:{RESET} {CYAN}\"{text}\"{RESET}")
 
-    def record_instagram(self, handle, partner, extra_info=""):
+    def record_instagram(self, handle, partner, convo_history, initial_text=""):
         clean_handle = handle.lstrip('@')
         profile_url = f"https://instagram.com/{clean_handle}"
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-        entry = f"| {len(self.saved_instagrams) + 1} | `@{clean_handle}` | [{clean_handle}]({profile_url}) | @{partner} | {extra_info} | {timestamp} |\n"
-        
+        metadata = extract_metadata_from_convo(convo_history)
+        age = metadata["age"]
+        location = metadata["location"]
+        interests = metadata["interests"]
+        notes = f"Initial: {initial_text}" if initial_text else "Natural conversation"
+
+        entry = f"| {len(self.saved_instagrams) + 1} | `@{clean_handle}` | [{clean_handle}]({profile_url}) | @{partner} | {age} | {location} | {interests} | {notes} | {timestamp} |\n"
+
         with open(STORAGE_FILE, "a") as f:
             f.write(entry)
 
@@ -224,39 +355,45 @@ class InstagramHunter:
             "handle": clean_handle,
             "url": profile_url,
             "partner": partner,
+            "age": age,
+            "location": location,
+            "interests": interests,
             "time": timestamp
         })
 
-        print("\n" + f"{BOLD}{GREEN}" + "★"*65)
+        print("\n" + f"{BOLD}{GREEN}" + "★" * 65)
         print(f"🎉 INSTAGRAM COLLECTED #{len(self.saved_instagrams)}: @{clean_handle}")
         print(f"🔗 Profile: {profile_url}")
+        print(f"📍 Location: {location} | Age: {age} | Interests: {interests}")
         print(f"📁 Stored in: {STORAGE_FILE}")
-        print("★"*65 + f"{RESET}\n")
+        print("★" * 65 + f"{RESET}\n")
 
         play_alert_sound()
         send_desktop_notification(
             f"🎉 INSTAGRAM CAPTURED: @{clean_handle}",
-            f"From @{partner}\nSaved to {STORAGE_FILE}!"
+            f"From @{partner} ({location})\nSaved to {STORAGE_FILE}!"
         )
 
     async def engage_girl_for_instagram(self, initial_text, partner):
-        """Converses naturally and politely as Sahan to acquire Instagram handle."""
+        """Converses naturally, empathetically, and politely as Sahan to acquire Instagram handle."""
         print(f"\n{BOLD}{MAGENTA}[💖 CHATTING WITH @{partner}]{RESET} Girl confirmed ({initial_text})")
 
-        # Step 1: Smooth icebreaker
+        convo_history = [initial_text]
+        asked_insta = False
+        convo_stage = 1  # 1: Origin/location, 2: Activity/hobbies, 3: Instagram ask
+        convo_start = asyncio.get_event_loop().time()
+
+        # Step 1: Smooth, casual icebreaker
         await asyncio.sleep(0.8)
-        # If she already mentioned where she is from (e.g., "19f ny", "f usa")
         loc_match = re.search(r'\b(ny|cali|california|texas|florida|uk|canada|germany|australia|india|london)\b', initial_text.lower())
         if loc_match:
             loc = loc_match.group(1).title()
-            await self.human_send(f"heyy nice to meet u :) how's everything in {loc}?", typing_time=1.5)
+            await self.human_send(f"heyy nice to meet u :) how's everything over in {loc}?", typing_time=1.4)
+            convo_stage = 2
         else:
-            await self.human_send("heyy nice to meet u :) where u from?", typing_time=1.5)
+            await self.human_send("heyy nice to meet u :) where are u from?", typing_time=1.4)
 
-        asked_insta = False
-        convo_start = asyncio.get_event_loop().time()
-
-        while asyncio.get_event_loop().time() - convo_start < 60.0:
+        while asyncio.get_event_loop().time() - convo_start < 70.0:
             if self.disconnect_event.is_set():
                 print(f"{YELLOW}[x] @{partner} disconnected.{RESET}")
                 await self.close_match()
@@ -271,57 +408,71 @@ class InstagramHunter:
             except asyncio.TimeoutError:
                 continue
 
-            # Reset conversation timer on message receipt
             convo_start = asyncio.get_event_loop().time()
-
             content = msg.get("content", "").strip()
+            convo_history.append(content)
             print(f"{MAGENTA}[@{partner}]:{RESET} \"{content}\"")
 
-            # Check if she shared Instagram
+            # Check if she provided Instagram handle
             handle = extract_instagram_handle(content, asked_for_insta=asked_insta)
             if handle:
-                self.record_instagram(handle, partner, extra_info=initial_text)
-                await self.human_send("awesome, just added u! talk to u there, have a great day :)", typing_time=1.2)
+                self.record_instagram(handle, partner, convo_history, initial_text=initial_text)
+                await self.human_send("awesome, just added u! talk to u there, have a wonderful day :)", typing_time=1.2)
                 await asyncio.sleep(2.0)
                 await self.close_match()
                 return True
 
             lower = content.lower()
 
-            # Underage safety check during chat
+            # Safety check
             if re.search(r'(?:^|\b)(?:1[0-7]|underage|minor|child|kid)(?:f|m|\b)', lower):
                 print(f"{RED}[SAFETY SKIP] Underage mention detected in conversation. Ending match.{RESET}")
                 await self.close_match()
                 return False
 
-            # Questions she might ask about Sahan
+            # Inquiries about Sahan
             if re.search(r"\b(where\s+(are\s+)?(u|you)\s+from|where\s+do\s+(u|you)\s+live|ur\s+country|wbu|what\s+about\s+you)\b", lower):
-                await self.human_send("i'm Sahan, from Sri Lanka! wbu?", typing_time=1.5)
+                await self.human_send("i'm Sahan, from Sri Lanka! wbu?", typing_time=1.3)
                 continue
 
             if re.search(r"\b(what\x27?s\s+ur\s+name|who\s+are\s+u|who\s+r\s+u|ur\s+name)\b", lower):
-                await self.human_send("i'm Sahan :) nice to meet u! what's your name?", typing_time=1.4)
+                await self.human_send("i'm Sahan :) what's your name?", typing_time=1.2)
                 continue
 
             if re.search(r"\b(how\s+old|ur\s+age|age\?)\b", lower):
-                await self.human_send("i'm 20 :) wbu?", typing_time=1.2)
+                await self.human_send("i'm 20 :) wbu?", typing_time=1.1)
                 continue
 
             if re.search(r"\b(wyd|what\s+(are\s+)?(u|you)\s+doing)\b", lower):
-                await self.human_send("just chilling and listening to music haha, wbu?", typing_time=1.5)
+                await self.human_send("just chilling and listening to music haha, wbu?", typing_time=1.3)
                 continue
 
-            # Asking for Instagram
-            if not asked_insta:
+            # Stage-based organic progression
+            if convo_stage == 1:
+                # She answered where she is from
+                await asyncio.sleep(0.8)
+                await self.human_send("oh that's really cool! what are u up to today? studying, working or just chilling haha", typing_time=1.6)
+                convo_stage = 2
+
+            elif convo_stage == 2:
+                # She answered about her day
                 await asyncio.sleep(1.0)
-                await self.human_send("btw u seem really sweet haha, u got insta? drop ur @ so we can chat there :)", typing_time=1.8)
+                # Gentle, respectful Instagram bridge
+                await self.human_send("haha you're really fun to talk to, honestly chitchat always disconnects people randomly lol. do u have an insta so we don't lose touch? only if u're comfortable of course :)", typing_time=2.0)
                 asked_insta = True
-            else:
-                # If she asked back about insta
-                if any(w in lower for w in ['why', 'for what']):
-                    await self.human_send("chitchat disconnects randomly haha, drop ur @!", typing_time=1.4)
+                convo_stage = 3
+
+            elif convo_stage == 3:
+                # Handling reactions to the Instagram ask
+                if any(w in lower for w in ['why', 'for what', 'reason']):
+                    await self.human_send("chitchat drops connection randomly haha, just thought you had great vibes! what's ur @? i'll just say hi :)", typing_time=1.5)
                 elif any(w in lower for w in ['wbu', 'what about u', 'ur @', 'urs', 'what is yours']):
-                    await self.human_send("i'll follow u right now! what's your @?", typing_time=1.3)
+                    await self.human_send("i'll follow u right now! what's your @? :)", typing_time=1.3)
+                elif any(w in lower for w in ['no', 'nah', 'dont have', 'don\x27t have', 'private', 'idk']):
+                    await self.human_send("haha no worries at all, totally respect that! hope you have a great day :)", typing_time=1.2)
+                    await asyncio.sleep(1.5)
+                    await self.close_match()
+                    return False
                 else:
                     await self.human_send("what's your @? :)", typing_time=1.0)
 
@@ -333,16 +484,14 @@ class InstagramHunter:
         self.stats["checked"] += 1
         print(f"\n{BOLD}────────────────── [ Match #{self.stats['checked']} ] ──────────────────{RESET}")
 
-        # Ensure clean state before queuing
         await self.close_match()
-
         self.match_event.clear()
         self.disconnect_event.clear()
 
         # Enter matching queue
         queued = self.client.search_match()
         if not queued:
-            print(f"{YELLOW}[⏱] Queue busy or rate-limited, retrying shortly...{RESET}")
+            print(f"{YELLOW}[⏱] Queue busy, retrying shortly...{RESET}")
             await asyncio.sleep(1.0)
             return
 
@@ -357,30 +506,32 @@ class InstagramHunter:
             await self.close_match()
             return
 
-        # Clear any residual disconnect flag for this fresh match
         self.disconnect_event.clear()
-
         partner = self.partner_username or "Stranger"
         print(f"{YELLOW}[*] Connected with:{RESET} {BOLD}@{partner}{RESET}")
 
-        # 1. Instant username check
+        # 1. Instant username check (Male)
         if is_male_username(partner):
-            print(f"{RED}[⚡ SKIP] Male keyword in username (@{partner}). Skipping immediately!{RESET}")
+            print(f"{RED}[⚡ SKIP] Male indicator in username (@{partner}). Skipping immediately!{RESET}")
             self.stats["males"] += 1
             await self.close_match()
             return
 
-        # Fast human pause to ensure text is sent before quick-skippers leave
+        # 2. Instant username check (Female)
+        if is_female_username(partner):
+            print(f"{MAGENTA}[💖 FEMALE USERNAME DETECTED: @{partner}]{RESET}")
+            self.stats["girls"] += 1
+            await self.engage_girl_for_instagram(f"username: @{partner}", partner)
+            return
+
+        # 3. Neutral Username: Friendly, organic opening greeting
         await asyncio.sleep(0.5)
+        await self.human_send("heyy :) how's your day going?", typing_time=0.8)
 
-        # 2. Screening Question
-        await self.human_send("f or m?", typing_time=0.6)
-
-        # 3. Monitor screening reply (up to 18s for slow mobile typers)
+        # 4. Monitor reply (up to 18s, dynamically extended on typing)
         start_time = asyncio.get_event_loop().time()
-        handled_counter = False
         handled_greeting = False
-        asked_if_girl = False
+        handled_counter = False
         is_answered = False
 
         while asyncio.get_event_loop().time() - start_time < 18.0:
@@ -423,27 +574,26 @@ class InstagramHunter:
                 await self.close_match()
                 break
 
-            elif asked_if_girl and re.search(r"^(yes|yeah|yep|yea|mhm|ya|yup)$", content.lower().strip()):
-                self.stats["girls"] += 1
-                is_answered = True
-                await self.engage_girl_for_instagram("girl", partner)
-                break
-
-            elif re.search(r"\b(pic|photo|avatar|pfp|profile)\b", content.lower()) and not asked_if_girl:
-                asked_if_girl = True
-                await self.human_send("haha it won't load for me! u a girl? :)", typing_time=1.0)
-
-            elif re.search(r"^(1[89]|[2-9][0-9])$", content.strip()) and not asked_if_girl:
-                asked_if_girl = True
-                await self.human_send("nice! u a girl? :)", typing_time=0.9)
-
             elif gender == "counter" and not handled_counter:
                 handled_counter = True
-                await self.human_send("m, Sahan here :) u?", typing_time=1.0)
+                await self.human_send("i'm a guy, Sahan :) what about u?", typing_time=1.0)
 
-            elif gender == "greeting" and not handled_greeting:
+            elif (gender == "greeting" or any(w in content.lower() for w in ['good', 'fine', 'ok', 'chilling', 'bored', 'well', 'nothing'])) and not handled_greeting:
                 handled_greeting = True
-                await self.human_send("hey! f or m? :)", typing_time=0.9)
+                await self.human_send("pretty good! i'm Sahan btw :) r u a boy or a girl? don't wanna assume haha", typing_time=1.2)
+
+            elif re.search(r"\b(girl|female|woman)\b", content.lower()):
+                self.stats["girls"] += 1
+                is_answered = True
+                await self.engage_girl_for_instagram(content, partner)
+                break
+
+            elif re.search(r"\b(boy|guy|man|male)\b", content.lower()):
+                self.stats["males"] += 1
+                is_answered = True
+                print(f"{RED}[⚡ SKIP] Male detected (\"{content}\"). Skipping immediately...{RESET}")
+                await self.close_match()
+                break
 
         if not is_answered:
             print(f"{YELLOW}[⏱] No reply from @{partner}. Skipping...{RESET}")
@@ -458,14 +608,10 @@ class InstagramHunter:
             await self.hunt_single()
             await asyncio.sleep(0.8)
 
-        print("\n" + f"{BOLD}{GREEN}" + "═"*65)
-        print(f"🎯 MISSION ACCOMPLISHED! Successfully collected {len(self.saved_instagrams)} Instagram IDs.")
-        print(f"📁 All profiles saved in: {STORAGE_FILE}")
-        print("═"*65 + f"{RESET}\n")
-        for idx, item in enumerate(self.saved_instagrams, 1):
-            print(f"{idx}. {BOLD}@{item['handle']}{RESET} -> {item['url']} (From @{item['partner']})")
-
-        self.client.disconnect_match(next_match=False)
+        print("\n" + f"{BOLD}{GREEN}" + "═" * 65)
+        print(f"🎉 GOAL ACHIEVED: {len(self.saved_instagrams)}/{TARGET_INSTAGRAM_COUNT} INSTAGRAM PROFILES CAPTURED!")
+        print(f"📁 Check {STORAGE_FILE} for full details and links.")
+        print("═" * 65 + f"{RESET}\n")
 
 if __name__ == "__main__":
     hunter = InstagramHunter()
@@ -473,3 +619,4 @@ if __name__ == "__main__":
         asyncio.run(hunter.run())
     except KeyboardInterrupt:
         print(f"\n{YELLOW}[*] Stopped by user.{RESET}")
+        sys.exit(0)
