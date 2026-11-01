@@ -35,36 +35,43 @@ function classifyGender(text) {
     return 'underage_skip';
   }
 
-  // 2. Screening questions from stranger
-  if (/(^|\b)(f\s*or\s*m|m\s*or\s*f|m\/f|f\/m)($|\b)/i.test(clean)) {
-    return 'counter';
+  // 2. Vulgar / male slang / looking for females
+  if (/\b(horny|dihhh|cock|dick|straight|looking for f|horny f)\b/i.test(clean)) {
+    return 'male';
   }
 
-  // 3. Negatives
+  // 3. Guys asking if WE are female (e.g. "f?", "are u f?", "u f?", "any f")
+  if (/(^|\b)(f\?+|f\s*\?+|are\s+(u|you)\s+f\??|u\s+f\??|any\s+f\??)($|\b)/i.test(clean)) {
+    return 'male';
+  }
+
+  // 4. Negatives
   if (/\bnot\s+(a\s+)?(girl|female|woman|f\b)/i.test(clean)) return 'male';
   if (/\bnot\s+(a\s+)?(boy|guy|man|male|m\b)/i.test(clean)) return 'female';
 
-  // 4. Female checks (e.g. "f", "19f", "f u?", "female wbu", "girl")
-  if (/(^|\b)(f|female|girl|woman|gurl|gril|fem)($|\b)/i.test(clean)) return 'female';
+  // 5. Declarative female checks (avoiding question marks)
+  if (/(^|\b)(female|girl|woman|gurl|gril|fem)($|\b)/i.test(clean) && !clean.includes('?')) return 'female';
   if (/(^|\b)(\d{1,2}\s*f|f\s*\d{1,2}|f4m|f4a)($|\b)/i.test(clean)) return 'female';
-  if (/\b(i'm|im|i\s*am)\s+(a\s+)?(girl|female|woman|fem|f)\b/i.test(clean)) return 'female';
+  if (/\b(i'm|im|i\s*am)\s+(a\s+)?(girl|female|woman|fem)\b/i.test(clean)) return 'female';
+  if (/^f[.!]*$/i.test(clean)) return 'female';
+  if (/^f\b.*(wbu|u\?|you\?|here|cali|ny|usa)/i.test(clean)) return 'female';
 
-  // 5. Male checks
-  if (/(^|\b)(m|male|boy|guy|man|bro|dude|cock|dick|femboy)($|\b)/i.test(clean)) return 'male';
+  // 6. Male checks
+  if (/(^|\b)(m|male|boy|guy|man|bro|dude|femboy)($|\b)/i.test(clean)) return 'male';
   if (/(^|\b)(m\d{1,2}|\d{1,2}m|m\s*\d{1,2}|\d{1,2}\s*m|m4f|m4m|m4a)/i.test(clean)) return 'male';
   if (/\b(i'm|im|i\s*am)\s+(a\s+)?(boy|guy|man|male|dude|m)\b/i.test(clean)) return 'male';
 
-  // 6. Counter questions
-  if (/(^|\b)(u\?|you\?|wbu|what\s+about\s+you|who\s+r\s+u|who\s+are\s+you)/i.test(clean)) {
-    return 'counter';
-  }
-
-  // 7. Greetings
-  if (/^(hi+|hey+|yo+|hello+|sup+|wassup|hii+|heyy+)[!?.]*$/i.test(clean)) {
-    return 'greeting';
-  }
-
   return 'unknown';
+}
+
+function detectNameGender(text) {
+  const clean = text.replace(/[^a-zA-Z\s]/g, ' ').toLowerCase();
+  const words = clean.split(/\s+/).filter(Boolean);
+  for (const w of words) {
+    if (COMMON_FEMALE_NAMES.has(w)) return 'female';
+    if (COMMON_MALE_NAMES.has(w)) return 'male';
+  }
+  return null;
 }
 
 // Demographic & Keyword Sets
@@ -649,12 +656,12 @@ class ChitchatUIHunter {
 
     const convoHistory = [initialText];
     let askedInsta = false;
-    let convoStage = 1; // 1: Origin/location, 2: Activity/vibe, 3: Instagram ask
+    let convoStage = 1; // 1: Origin/location, 2: Daily vibe, 3: Warm banter, 4: Instagram ask
     let startConvo = Date.now();
 
     // Icebreaker
     await new Promise(r => setTimeout(r, 1000));
-    const locMatch = initialText.toLowerCase().match(/\b(ny|cali|california|texas|florida|uk|canada|germany|australia|india|london)\b/);
+    const locMatch = initialText.toLowerCase().match(/\b(ny|cali|california|texas|florida|uk|canada|germany|australia|india|london|sri lanka|italy|spain)\b/);
     if (locMatch) {
       await this.sendChatMessage(`heyy nice to meet u :) how's everything over in ${locMatch[1].toUpperCase()}?`);
       convoStage = 2;
@@ -662,7 +669,7 @@ class ChitchatUIHunter {
       await this.sendChatMessage('heyy nice to meet u :) where are u from?');
     }
 
-    while (Date.now() - startConvo < 70000) {
+    while (Date.now() - startConvo < 120000) {
       if (this.skipRequested) {
         console.log('[*] Skip requested by user.');
         await this.triggerSkip();
@@ -721,7 +728,7 @@ class ChitchatUIHunter {
         }
 
         // Questions about Sahan
-        if (/\b(where\s+(are\s+)?(u|you)\s+from|where\s+do\s+(u|you)\s+live|ur\s+country|wbu)\b/i.test(lower)) {
+        if (/\b(where\s+(are\s+)?(u|you)\s+from|where\s+do\s+(u|you)\s+live|ur\s+country|wbu|what\s+about\s+you)\b/i.test(lower)) {
           await new Promise(r => setTimeout(r, 1200));
           await this.sendChatMessage("i'm Sahan, from Sri Lanka! wbu?");
           continue;
@@ -751,11 +758,21 @@ class ChitchatUIHunter {
           await this.sendChatMessage("oh that's really cool! what are u up to today? studying, working or just chilling haha");
           convoStage = 2;
         } else if (convoStage === 2) {
+          await new Promise(r => setTimeout(r, 1200));
+          if (/study|exam|class|uni|college/i.test(lower)) {
+            await this.sendChatMessage("haha i feel that, studying gets so exhausting lol! make sure u get some rest :)");
+          } else if (/music|song|spotify|movie|netflix/i.test(lower)) {
+            await this.sendChatMessage("nice! honestly same here, was just listening to some music and chilling haha");
+          } else {
+            await this.sendChatMessage("haha nice! honestly you have such a chill and sweet vibe :)");
+          }
+          convoStage = 3;
+        } else if (convoStage === 3) {
           await new Promise(r => setTimeout(r, 1400));
           await this.sendChatMessage("haha you're really fun to talk to, honestly chitchat always disconnects people randomly lol. do u have an insta so we don't lose touch? only if u're comfortable of course :)");
           askedInsta = true;
-          convoStage = 3;
-        } else if (convoStage === 3) {
+          convoStage = 4;
+        } else if (convoStage === 4) {
           if (lower.includes('why') || lower.includes('for what')) {
             await new Promise(r => setTimeout(r, 1200));
             await this.sendChatMessage("chitchat drops connection randomly haha, just thought you had great vibes! what's ur @? i'll just say hi :)");
@@ -828,13 +845,12 @@ class ChitchatUIHunter {
       await this.updateHUD(`Saying hi to @${partner}...`);
       await this.sendChatMessage("heyy :) how's your day going?");
 
-      // 5. Monitor reply (up to 18 seconds)
-      const startTime = Date.now();
-      let handledCounter = false;
-      let handledGreeting = false;
+      // 5. Monitor reply (up to 25 seconds, dynamically extended on typing or message)
+      let startTime = Date.now();
+      let askedGender = false;
       let isAnswered = false;
 
-      while (Date.now() - startTime < 18000) {
+      while (Date.now() - startTime < 25000) {
         await new Promise(r => setTimeout(r, 400));
 
         if (this.skipRequested) {
@@ -862,55 +878,79 @@ class ChitchatUIHunter {
 
         for (const msg of strangerMsgs) {
           this.seenMessageIds.add(msg.id);
+          startTime = Date.now();
           const text = msg.text;
           console.log(`\x1b[95m[@${partner}]:\x1b[0m "${text}"`);
+          const lower = text.toLowerCase().trim();
 
-          const gender = classifyGender(text);
-
-          if (gender === 'female') {
-            this.stats.girls++;
-            isAnswered = true;
-            await this.engageGirl(text, partner);
-            break;
-
-          } else if (gender === 'male') {
-            this.stats.males++;
-            isAnswered = true;
-            console.log(`\x1b[91m[⚡ SKIP] Male detected ("${text}"). Skipping immediately...\x1b[0m`);
-            await this.updateHUD(`Skipped male: "${text}"`);
-            await this.triggerSkip();
-            break;
-
-          } else if (gender === 'underage_skip') {
-            console.log(`\x1b[91m[🛡️ SAFETY SKIP] Underage detected ("${text}"). Skipping immediately!\x1b[0m`);
+          // A. Underage safety check
+          if (/(?:^|\b)(?:1[0-7]|underage|minor|child|kid)(?:f|m|\b)/i.test(lower)) {
+            console.log('\x1b[91m[🛡️ SAFETY SKIP] Underage detected. Skipping immediately!\x1b[0m');
             isAnswered = true;
             await this.updateHUD('Safety skip (underage)');
             await this.triggerSkip();
             break;
+          }
 
-          } else if (gender === 'counter' && !handledCounter) {
-            handledCounter = true;
-            await new Promise(r => setTimeout(r, 900));
-            await this.sendChatMessage("i'm a guy, Sahan :) what about u?");
+          // B. Check male indicators
+          const gender = classifyGender(text);
+          const nameGender = detectNameGender(text);
 
-          } else if ((gender === 'greeting' || ['good', 'fine', 'ok', 'chilling', 'bored', 'well', 'nothing'].some(w => text.toLowerCase().includes(w))) && !handledGreeting) {
-            handledGreeting = true;
-            await new Promise(r => setTimeout(r, 1100));
-            await this.sendChatMessage("pretty good! i'm Sahan btw :) r u a boy or a girl? don't wanna assume haha");
-
-          } else if (/\b(girl|female|woman)\b/i.test(text)) {
-            this.stats.girls++;
-            isAnswered = true;
-            await this.engageGirl(text, partner);
-            break;
-
-          } else if (/\b(boy|guy|man|male)\b/i.test(text)) {
+          if (gender === 'male' || nameGender === 'male') {
             this.stats.males++;
             isAnswered = true;
             console.log(`\x1b[91m[⚡ SKIP] Male detected ("${text}"). Skipping immediately...\x1b[0m`);
             await this.updateHUD(`Skipped male: "${text}"`);
             await this.triggerSkip();
             break;
+          }
+
+          // C. Check female indicators
+          if (gender === 'female' || nameGender === 'female') {
+            this.stats.girls++;
+            isAnswered = true;
+            await this.engageGirl(text, partner);
+            break;
+          }
+
+          // D. Stranger asks if WE are a boy or girl, or counter questions
+          if (/(f\s*or\s*m|m\s*or\s*f|m\/f|f\/m|are\s+u\s+(a\s+)?(boy|girl)|boy\s+or\s+girl)/i.test(lower)) {
+            await new Promise(r => setTimeout(r, 900));
+            await this.sendChatMessage("i'm a guy, Sahan :) what about u?");
+            askedGender = true;
+            continue;
+          }
+
+          // E. Stranger asks "wbu", "what about you", "and you", "how about u"
+          if (/\b(wbu|what\s+about\s+(u|you)|how\s+about\s+(u|you)|and\s+(u|you)|yours)\b/i.test(lower)) {
+            if (!askedGender) {
+              await new Promise(r => setTimeout(r, 1200));
+              await this.sendChatMessage("pretty good! just listening to some music :) i'm Sahan btw, r u a boy or a girl? don't wanna assume haha");
+              askedGender = true;
+            } else {
+              await new Promise(r => setTimeout(r, 900));
+              await this.sendChatMessage("i'm a guy, Sahan :) what about u?");
+            }
+            continue;
+          }
+
+          // F. Stranger expresses feeling bad or rough
+          if (/bad|sad|tired|rough|exhausted|sick/i.test(lower)) {
+            await new Promise(r => setTimeout(r, 1200));
+            await this.sendChatMessage("oh no, hope your day gets better! i'm Sahan btw :) r u a boy or a girl? don't wanna assume haha");
+            askedGender = true;
+            continue;
+          }
+
+          // G. Stranger replies with standard greeting/status
+          if (!askedGender) {
+            await new Promise(r => setTimeout(r, 1100));
+            await this.sendChatMessage("pretty good! i'm Sahan btw :) r u a boy or a girl? don't wanna assume haha");
+            askedGender = true;
+            continue;
+          } else {
+            await new Promise(r => setTimeout(r, 900));
+            await this.sendChatMessage("haha nice! are u a guy or a girl btw? don't wanna assume haha");
           }
         }
 

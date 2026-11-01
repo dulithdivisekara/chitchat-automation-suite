@@ -25,7 +25,8 @@ RESET = "\033[0m"
 MALE_KEYWORDS = {
     "guy", "dude", "bro", "boy", "boyz", "man", "men", "male", "fella", "dawg",
     "gentleman", "chad", "lad", "mr", "sir", "king", "prince", "lord", "daddy",
-    "dad", "father", "son", "femboy", "m4f", "m4m", "m4a", "broy", "subdude", "cock", "dick"
+    "dad", "father", "son", "femboy", "m4f", "m4m", "m4a", "broy", "subdude",
+    "cock", "dick", "dihhh", "dih", "gay", "brother", "brotherly"
 }
 
 COMMON_MALE_NAMES = {
@@ -34,15 +35,16 @@ COMMON_MALE_NAMES = {
     "jack", "jackson", "jacob", "james", "jason", "john", "johnny", "jordan",
     "josh", "joshua", "justin", "kevin", "kyle", "lucas", "luke", "mark",
     "matt", "matthew", "max", "michael", "mikey", "nathan", "nick", "noah",
-    "omar", "patrick", "paul", "peter", "ryan", "sam", "sean", "stephen",
+    "omar", "patrick", "paul", "peter", "pete", "ryan", "sam", "sean", "stephen",
     "thomas", "tyler", "william", "zach", "zack", "ali", "ahmed", "mohamed",
-    "baker", "srijal", "dadbod", "steve", "tom", "tim", "robert", "richard"
+    "baker", "srijal", "dadbod", "steve", "tom", "tim", "robert", "richard",
+    "massimo", "rishabh", "erion", "ace"
 }
 
 FEMALE_KEYWORDS = {
     "girl", "girlz", "girly", "female", "woman", "women", "lady", "queen",
     "princess", "miss", "ms", "mrs", "chick", "babe", "shawty", "f4m", "f4a",
-    "femme", "she", "her"
+    "femme", "she", "her", "catgirl"
 }
 
 COMMON_FEMALE_NAMES = {
@@ -52,7 +54,8 @@ COMMON_FEMALE_NAMES = {
     "chloe", "penelope", "layla", "riley", "zoey", "nora", "lily", "eleanor",
     "hannah", "lillian", "addison", "aubrey", "ellie", "stella", "natalie", "zoe",
     "leah", "hazel", "violet", "aurora", "savannah", "audrey", "brooklyn", "bella",
-    "claire", "skylar", "sarah", "lucy", "anna", "maya", "sara", "elena", "alice"
+    "claire", "skylar", "sarah", "lucy", "anna", "maya", "sara", "elena", "alice",
+    "mary"
 }
 
 COUNTRIES_AND_PLACES = {
@@ -67,12 +70,13 @@ COUNTRIES_AND_PLACES = {
     "sri lanka": "Sri Lanka", "colombo": "Colombo, Sri Lanka",
     "italy": "Italy", "spain": "Spain", "netherlands": "Netherlands",
     "philippines": "Philippines", "brazil": "Brazil", "japan": "Japan",
-    "sweden": "Sweden", "norway": "Norway", "new zealand": "New Zealand"
+    "sweden": "Sweden", "norway": "Norway", "new zealand": "New Zealand",
+    "venice": "Venice, Italy", "taiwan": "Taiwan"
 }
 
 def is_male_username(username):
     raw = username.strip()
-    clean = re.sub(r'[^\w\s]', ' ', raw)
+    clean = re.sub(r'[^a-zA-Z0-9\s]', ' ', raw)
     tokens = [t.lower() for t in clean.split() if t]
 
     for t in tokens:
@@ -82,9 +86,9 @@ def is_male_username(username):
             return True
 
     lower = raw.lower()
-    if re.search(r'\b(m|male)\b', lower):
+    if re.search(r'\b(m|male|guy|dude|boy|dawg|femboy|dadbod|dihhh|gay|brother)\b', lower):
         return True
-    if re.search(r'(guy|dude|boy|dawg|femboy|dadbod)', lower):
+    if re.search(r'(guy|dude|boy|dawg|femboy|dadbod|dihhh)', lower):
         return True
     if re.search(r'[a-z]Man\b', raw) or (re.search(r'\bman\b', lower) and not re.search(r'\b(woman|human|german)\b', lower)):
         return True
@@ -93,7 +97,7 @@ def is_male_username(username):
 
 def is_female_username(username):
     raw = username.strip()
-    clean = re.sub(r'[^\w\s]', ' ', raw)
+    clean = re.sub(r'[^a-zA-Z0-9\s]', ' ', raw)
     tokens = [t.lower() for t in clean.split() if t]
 
     for t in tokens:
@@ -103,50 +107,59 @@ def is_female_username(username):
             return True
 
     lower = raw.lower()
-    if re.search(r'\b(female|girl|girly|queen|princess|lady)\b', lower):
+    if re.search(r'(female|girl|girly|queen|princess|lady|catgirl)', lower):
         return True
     return False
+
+def detect_name_gender(text):
+    clean = re.sub(r'[^a-zA-Z\s]', ' ', text).lower()
+    words = clean.split()
+    for w in words:
+        if w in COMMON_FEMALE_NAMES:
+            return "female"
+        if w in COMMON_MALE_NAMES:
+            return "male"
+    return None
 
 def classify_gender(text):
     clean = text.lower().strip()
 
-    # 1. Underage safety check (Immediate termination)
+    # 1. Underage safety check
     if re.search(r'(?:^|\b)(?:1[0-7]|underage|minor|child|kid)(?:f|m|\b)', clean):
         return "underage_skip"
 
-    # 2. Counter screening questions from stranger
-    if re.search(r'(^|\b)(f\s*or\s*m|m\s*or\s*f|m/f|f/m)($|\b)', clean):
-        return "counter"
-
-    # 3. Negatives
-    if re.search(r"\bnot\s+(a\s+)?(girl|female|woman|f\b)", clean):
+    # 2. Vulgar / male slang / male looking for females
+    if re.search(r'\b(horny|dihhh|cock|dick|straight|looking for f|horny f)\b', clean):
         return "male"
-    if re.search(r"\bnot\s+(a\s+)?(boy|guy|man|male|m\b)", clean):
+
+    # 3. Guys asking if WE are female (e.g. "f?", "are u f?", "u f?", "any f")
+    if re.search(r'(^|\b)(f\?+|f\s*\?+|are\s+(u|you)\s+f\??|u\s+f\??|any\s+f\??)($|\b)', clean):
+        return "male"
+
+    # 4. Declarative female checks (avoiding question marks)
+    if re.search(r'\bnot\s+(a\s+)?(girl|female|woman|f\b)', clean):
+        return "male"
+    if re.search(r'\bnot\s+(a\s+)?(boy|guy|man|male|m\b)', clean):
         return "female"
 
-    # 4. Female checks
-    if re.search(r"(^|\b)(f|female|girl|woman|gurl|gril|fem)($|\b)", clean):
+    if re.search(r'(^|\b)(female|girl|woman|gurl|gril|fem)($|\b)', clean) and '?' not in clean:
         return "female"
-    if re.search(r"(^|\b)(\d{1,2}\s*f|f\s*\d{1,2}|f4m|f4a)($|\b)", clean):
+    if re.search(r'(^|\b)(\d{1,2}\s*f|f\s*\d{1,2}|f4m|f4a)($|\b)', clean):
         return "female"
-    if re.search(r"\b(i\x27m|im|i\s*am)\s+(a\s+)?(girl|female|woman|fem|f)\b", clean):
+    if re.search(r'\b(i\x27m|im|i\s*am)\s+(a\s+)?(girl|female|woman|fem)\b', clean):
+        return "female"
+    if re.fullmatch(r'f[.!]*', clean):
+        return "female"
+    if re.search(r'^f\b.*(wbu|u\?|you\?|here|cali|ny|usa)', clean):
         return "female"
 
     # 5. Male checks
-    if re.search(r"(^|\b)(m|male|boy|guy|man|bro|dude|cock|dick|femboy)($|\b)", clean):
+    if re.search(r'(^|\b)(m|male|boy|guy|man|bro|dude|femboy)($|\b)', clean):
         return "male"
-    if re.search(r"(^|\b)(m\d{1,2}|\d{1,2}m|m\s*\d{1,2}|\d{1,2}\s*m|m4f|m4m|m4a)", clean):
+    if re.search(r'(^|\b)(m\d{1,2}|\d{1,2}m|m\s*\d{1,2}|\d{1,2}\s*m|m4f|m4m|m4a)', clean):
         return "male"
-    if re.search(r"\b(i\x27m|im|i\s*am)\s+(a\s+)?(boy|guy|man|male|dude|m)\b", clean):
+    if re.search(r'\b(i\x27m|im|i\s*am)\s+(a\s+)?(boy|guy|man|male|dude|m)\b', clean):
         return "male"
-
-    # 6. Counter questions
-    if re.search(r"(^|\b)(u\?|you\?|wbu|what\s+about\s+you|who\s+r\s+u|who\s+are\s+you)", clean):
-        return "counter"
-
-    # 7. Greetings
-    if re.fullmatch(r"(hi+|hey+|yo+|hello+|sup+|wassup|hii+|heyy+)[!?.]*", clean):
-        return "greeting"
 
     return "unknown"
 
@@ -380,12 +393,12 @@ class InstagramHunter:
 
         convo_history = [initial_text]
         asked_insta = False
-        convo_stage = 1  # 1: Origin/location, 2: Activity/hobbies, 3: Instagram ask
+        convo_stage = 1  # 1: Origin/location, 2: Daily vibe/interests, 3: Warm banter, 4: Instagram ask
         convo_start = asyncio.get_event_loop().time()
 
         # Step 1: Smooth, casual icebreaker
         await asyncio.sleep(0.8)
-        loc_match = re.search(r'\b(ny|cali|california|texas|florida|uk|canada|germany|australia|india|london)\b', initial_text.lower())
+        loc_match = re.search(r'\b(ny|cali|california|texas|florida|uk|canada|germany|australia|india|london|sri lanka|italy|spain)\b', initial_text.lower())
         if loc_match:
             loc = loc_match.group(1).title()
             await self.human_send(f"heyy nice to meet u :) how's everything over in {loc}?", typing_time=1.4)
@@ -393,7 +406,7 @@ class InstagramHunter:
         else:
             await self.human_send("heyy nice to meet u :) where are u from?", typing_time=1.4)
 
-        while asyncio.get_event_loop().time() - convo_start < 70.0:
+        while asyncio.get_event_loop().time() - convo_start < 120.0:
             if self.disconnect_event.is_set():
                 print(f"{YELLOW}[x] @{partner} disconnected.{RESET}")
                 await self.close_match()
@@ -450,19 +463,29 @@ class InstagramHunter:
             # Stage-based organic progression
             if convo_stage == 1:
                 # She answered where she is from
-                await asyncio.sleep(0.8)
-                await self.human_send("oh that's really cool! what are u up to today? studying, working or just chilling haha", typing_time=1.6)
+                await asyncio.sleep(1.0)
+                await self.human_send("oh that's really cool! what are u up to today? studying, working or just relaxing haha", typing_time=1.6)
                 convo_stage = 2
 
             elif convo_stage == 2:
                 # She answered about her day
                 await asyncio.sleep(1.0)
-                # Gentle, respectful Instagram bridge
-                await self.human_send("haha you're really fun to talk to, honestly chitchat always disconnects people randomly lol. do u have an insta so we don't lose touch? only if u're comfortable of course :)", typing_time=2.0)
-                asked_insta = True
+                if any(w in lower for w in ['study', 'exam', 'class', 'uni', 'college']):
+                    await self.human_send("haha i feel that, studying gets so exhausting lol! make sure u get some rest :)", typing_time=1.6)
+                elif any(w in lower for w in ['music', 'song', 'spotify', 'movie', 'netflix']):
+                    await self.human_send("nice! honestly same here, was just listening to some music and chilling haha", typing_time=1.6)
+                else:
+                    await self.human_send("haha nice! honestly you have such a chill and sweet vibe :)", typing_time=1.5)
                 convo_stage = 3
 
             elif convo_stage == 3:
+                # Gentle, respectful Instagram bridge
+                await asyncio.sleep(1.2)
+                await self.human_send("haha you're really fun to talk to, honestly chitchat always disconnects people randomly lol. do u have an insta so we don't lose touch? only if u're comfortable of course :)", typing_time=2.0)
+                asked_insta = True
+                convo_stage = 4
+
+            elif convo_stage == 4:
                 # Handling reactions to the Instagram ask
                 if any(w in lower for w in ['why', 'for what', 'reason']):
                     await self.human_send("chitchat drops connection randomly haha, just thought you had great vibes! what's ur @? i'll just say hi :)", typing_time=1.5)
@@ -528,13 +551,12 @@ class InstagramHunter:
         await asyncio.sleep(0.5)
         await self.human_send("heyy :) how's your day going?", typing_time=0.8)
 
-        # 4. Monitor reply (up to 18s, dynamically extended on typing)
+        # 4. Monitor reply (up to 25s, dynamically extended on typing or message)
         start_time = asyncio.get_event_loop().time()
-        handled_greeting = False
-        handled_counter = False
+        asked_gender = False
         is_answered = False
 
-        while asyncio.get_event_loop().time() - start_time < 18.0:
+        while asyncio.get_event_loop().time() - start_time < 25.0:
             if self.disconnect_event.is_set():
                 print(f"{YELLOW}[x] Stranger disconnected.{RESET}")
                 is_answered = True
@@ -550,50 +572,65 @@ class InstagramHunter:
             except asyncio.TimeoutError:
                 continue
 
+            start_time = asyncio.get_event_loop().time()
             content = msg.get("content", "").strip()
             print(f"{MAGENTA}[@{partner}]:{RESET} \"{content}\"")
+            lower = content.lower().strip()
 
-            gender = classify_gender(content)
-
-            if gender == "female":
-                self.stats["girls"] += 1
-                is_answered = True
-                await self.engage_girl_for_instagram(content, partner)
-                break
-
-            elif gender == "male":
-                self.stats["males"] += 1
-                is_answered = True
-                print(f"{RED}[⚡ SKIP] Male detected (\"{content}\"). Skipping immediately...{RESET}")
-                await self.close_match()
-                break
-
-            elif gender == "underage_skip":
+            # A. Underage safety check
+            if re.search(r'(?:^|\b)(?:1[0-7]|underage|minor|child|kid)(?:f|m|\b)', lower):
                 print(f"{RED}[🛡️ SAFETY SKIP] Underage detected (\"{content}\"). Skipping immediately!{RESET}")
                 is_answered = True
                 await self.close_match()
                 break
 
-            elif gender == "counter" and not handled_counter:
-                handled_counter = True
-                await self.human_send("i'm a guy, Sahan :) what about u?", typing_time=1.0)
+            # B. Check male indicators
+            gender = classify_gender(content)
+            name_gender = detect_name_gender(content)
 
-            elif (gender == "greeting" or any(w in content.lower() for w in ['good', 'fine', 'ok', 'chilling', 'bored', 'well', 'nothing'])) and not handled_greeting:
-                handled_greeting = True
-                await self.human_send("pretty good! i'm Sahan btw :) r u a boy or a girl? don't wanna assume haha", typing_time=1.2)
-
-            elif re.search(r"\b(girl|female|woman)\b", content.lower()):
-                self.stats["girls"] += 1
-                is_answered = True
-                await self.engage_girl_for_instagram(content, partner)
-                break
-
-            elif re.search(r"\b(boy|guy|man|male)\b", content.lower()):
+            if gender == "male" or name_gender == "male":
                 self.stats["males"] += 1
                 is_answered = True
                 print(f"{RED}[⚡ SKIP] Male detected (\"{content}\"). Skipping immediately...{RESET}")
                 await self.close_match()
                 break
+
+            # C. Check female indicators
+            if gender == "female" or name_gender == "female":
+                self.stats["girls"] += 1
+                is_answered = True
+                await self.engage_girl_for_instagram(content, partner)
+                break
+
+            # D. Stranger asks if WE are a boy or girl, or counter questions
+            if re.search(r'(f\s*or\s*m|m\s*or\s*f|m/f|f/m|are\s+u\s+(a\s+)?(boy|girl)|boy\s+or\s+girl)', lower):
+                await self.human_send("i'm a guy, Sahan :) what about u?", typing_time=1.0)
+                asked_gender = True
+                continue
+
+            # E. Stranger asks "wbu", "what about you", "and you", "how about u"
+            if re.search(r'\b(wbu|what\s+about\s+(u|you)|how\s+about\s+(u|you)|and\s+(u|you)|yours)\b', lower):
+                if not asked_gender:
+                    await self.human_send("pretty good! just listening to some music :) i'm Sahan btw, r u a boy or a girl? don't wanna assume haha", typing_time=1.4)
+                    asked_gender = True
+                else:
+                    await self.human_send("i'm a guy, Sahan :) what about u?", typing_time=1.0)
+                continue
+
+            # F. Stranger expresses feeling bad or rough
+            if any(w in lower for w in ['bad', 'sad', 'tired', 'rough', 'exhausted', 'sick']):
+                await self.human_send("oh no, hope your day gets better! i'm Sahan btw :) r u a boy or a girl? don't wanna assume haha", typing_time=1.4)
+                asked_gender = True
+                continue
+
+            # G. Stranger replies with standard greeting/status
+            if not asked_gender:
+                await self.human_send("pretty good! i'm Sahan btw :) r u a boy or a girl? don't wanna assume haha", typing_time=1.3)
+                asked_gender = True
+                continue
+            else:
+                # Sahan already asked, stranger replied something else
+                await self.human_send("haha nice! are u a guy or a girl btw? don't wanna assume haha", typing_time=1.1)
 
         if not is_answered:
             print(f"{YELLOW}[⏱] No reply from @{partner}. Skipping...{RESET}")
